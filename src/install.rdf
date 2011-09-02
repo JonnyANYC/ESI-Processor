@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+
+<RDF xmlns="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+  xmlns:em="http://www.mozilla.org/2004/em-rdf#">
+
+  <Description about="urn:mozilla:install-manifest">
+    <em:id>esi_processor@angelajonhome.com</em:id>
+    <em:name>ESI Processor</em:name>
+    <em:description>Let Firefox interpret ESI blocks if your web server doesn't.
+      Useful for debugging sites with ESI content.</em:description>
+    <em:version>0.0.1</em:version>
+    <em:creator>AngelaJonHome.com</em:creator>
+    <em:homepageURL>http://angelajonhome.com/projects/esi_processor</em:homepageURL>
+    <em:type>2</em:type>
+    
+    <em:optionsURL>chrome://esi_processor/content/preferences/preferences.xul</em:optionsURL>
+
+    <!-- Mozilla Firefox -->
+    <em:targetApplication>
+      <Description>
+        <em:id>{ec8030f7-c20a-464f-9b0e-13a3a9e97384}</em:id>
+        <em:minVersion>3.0</em:minVersion>
+        <em:maxVersion>3.7</em:maxVersion>
+      </Description>
+    </em:targetApplication>
+  </Description>
+</RDF>

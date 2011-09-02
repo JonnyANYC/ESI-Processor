@@ -1,0 +1,5 @@
+content   esi_processor              chrome/content/
+skin      esi_processor  classic/1.0 chrome/skin/
+resource  esi_processor              modules/
+
+overlay chrome://browser/content/browser.xul  chrome://esi_processor/content/browserOverlay.xul
