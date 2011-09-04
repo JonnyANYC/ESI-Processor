@@ -24,16 +24,13 @@ EsiProcessor.BrowserOverlay =  // class
                 esiRequests[j].open('GET', esiTags[j].getAttribute('src'), true);
                 esiRequests[j].onreadystatechange = function(event) {
                     if (this.readyState != 4)  { return; }
-
-                    var esiContent;
-                    if(this.status == 200)
-                    {
-                        esiContent = this.responseText;
-                    } else
+                    
+                    var esiContent = this.responseText;
+                    if(this.status != 200)
                     {
                         esiContent = 'ESI error for URL ' + esiTags[j].getAttribute('src') + ': ' + this.statusText;
                     }
-
+                    
                     var esiContentElement = freshDoc.createElement("div");
                     esiContentElement.innerHTML = esiContent;
                     // FIXME: Add the content as a direct child of the ESI tag.
