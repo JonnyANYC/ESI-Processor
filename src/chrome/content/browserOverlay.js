@@ -2,20 +2,17 @@ if ("undefined" == typeof(EsiProcessor)) {
     var EsiProcessor = {};
 };
 
+// This class is shared by all tabs in each browser window.
 EsiProcessor.BrowserOverlay =  // class
 {
-    // This class is shared by all tabs in each browser window.
-
     pageLoadHandler: function(event)
     {
         if (event.originalTarget instanceof HTMLDocument)
         {
             var freshDoc = event.originalTarget; // we don't care about defaultView property
             
-            if (freshDoc.domain != 'jonatkinson.home.mindspring.com')
-                return;
+            if (freshDoc.domain != 'jonatkinson.home.mindspring.com')  { return; }
 
-            // scan for ESI tags.
             var esiTags = freshDoc.getElementsByTagName("esi:include");
             var esiRequests = new Array(esiTags.length);
 
@@ -27,28 +24,27 @@ EsiProcessor.BrowserOverlay =  // class
                 esiRequests[j].open('GET', esiTags[j].getAttribute('src'), true);
                 esiRequests[j].onreadystatechange = function(event) {
                     if (this.readyState != 4)  { return; }
-                    
+
+                    var esiContent;
                     if(this.status == 200)
                     {
-                        let newText = document.createElement("span");
-                        newText.appendChild(document.createTextNode(this.responseText))
-                        esiTags[j].insertBefore(newText, null);
-                     //   esiTags[j].insertAdjacentHTML('afterend', this.responseText);
-                        //let esiResultsElement = freshDoc.createElement('div');
-                        //esiResultsElement.createTextNode(request.responseText);
-                        //esiTags[i].parent.insertBefore(esiResultsElement, esiTags[i]);
-                        //freshDoc.body.appendChild(esiResultsElement);
+                        esiContent = this.responseText;
                     } else
                     {
-                        let errorText = 'ESI error for URL ' + esiSrcUrl + ': ' + this.statusText;
-                        esiTags[j].insertAdjacentHTML('afterend', errorText );
-                    } 
+                        esiContent = 'ESI error for URL ' + esiTags[j].getAttribute('src') + ': ' + this.statusText;
+                    }
+
+                    var esiContentElement = freshDoc.createElement("div");
+                    esiContentElement.innerHTML = esiContent;
+                    // FIXME: Add the content as a direct child of the ESI tag.
+                    // Or as the next sibling of the ESI tag, if it is a node itself.
+                    //esiTags[j].insertBefore(esiContentElement, null);
+                    esiTags[j].appendChild(esiContentElement);
                 }
                 esiRequests[j].send(null);
             }
-            
-            window.dump("done!");
-            dump("done");
+ 
+            // Components.utils.reportError("Done!");
             
         // FIXME: remove handler now? or needed for reloads?
         }
