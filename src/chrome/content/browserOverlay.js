@@ -18,29 +18,31 @@ EsiProcessor.BrowserOverlay =  // class
 
             for (var i = 0; i < esiTags.length; i++)
             {
+                esiRequests[i] = new XMLHttpRequest();
+                esiRequests[i].open('GET', esiTags[i].getAttribute('src'), true);
+                
                 let j = i;
-
-                esiRequests[j] = new XMLHttpRequest();
-                esiRequests[j].open('GET', esiTags[j].getAttribute('src'), true);
-                esiRequests[j].onreadystatechange = function(event) {
+                esiRequests[i].onreadystatechange = function(event) {
                     if (this.readyState != 4)  { return; }
-                    
-                    var esiContent = this.responseText;
+
+                    let esiContent = this.responseText;
                     if(this.status != 200)
                     {
                         esiContent = 'ESI error for URL ' + esiTags[j].getAttribute('src') + ': ' + this.statusText;
                     }
-                    
-                    var esiContentElement = freshDoc.createElement("div");
+
+                    let esiContentElement = freshDoc.createElement("span");
+                    esiContentElement.id = "esi_processor-" + j;
                     esiContentElement.innerHTML = esiContent;
                     // FIXME: Add the content as a direct child of the ESI tag.
                     // Or as the next sibling of the ESI tag, if it is a node itself.
                     //esiTags[j].insertBefore(esiContentElement, null);
                     esiTags[j].appendChild(esiContentElement);
+                    //esiTags[j].parentNode.insertBefore(esiContentElement, esiTags[j].nextSibling);
                 }
-                esiRequests[j].send(null);
+                esiRequests[i].send(null);
             }
- 
+
             // Components.utils.reportError("Done!");
             
         // FIXME: remove handler now? or needed for reloads?
