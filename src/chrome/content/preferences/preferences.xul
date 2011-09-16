@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<?xml-stylesheet href="chrome://global/skin/" type="text/css"?>   
+
+<prefwindow xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
+  <prefpane id="saveoptions" label="ESI Processor">
+    <preferences>
+      <preference id="pref-hostlist" name="extensions.esi_processor.hostlist" type="string"/>
+      <preference id="pref-allowdomainvaluechange" name="extensions.esi_processor.allowdomainvaluechange" type="bool"/>
+    </preferences>
+    <textbox label="Host list:" preference="pref-hostlist"/>
+    <checkbox label="Change the document.domain value when needed" preference="pref-allowdomainvaluechange"/>
+  </prefpane>
+</prefwindow>
