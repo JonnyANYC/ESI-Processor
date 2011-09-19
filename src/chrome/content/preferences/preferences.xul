@@ -7,7 +7,7 @@
       <preference id="pref-hostlist" name="extensions.esi_processor.hostlist" type="string"/>
       <preference id="pref-allowdomainvaluechange" name="extensions.esi_processor.allowdomainvaluechange" type="bool"/>
     </preferences>
-    <textbox label="Host list:" preference="pref-hostlist"/>
+    <textbox label="Host list: (blank to enable on all hosts)" preference="pref-hostlist"/>
     <checkbox label="Change the document.domain value when needed" preference="pref-allowdomainvaluechange"/>
   </prefpane>
 </prefwindow>

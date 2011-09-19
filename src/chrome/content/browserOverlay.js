@@ -1,28 +1,90 @@
-if ("undefined" == typeof(EsiProcessor)) {
-    var EsiProcessor = {};
-};
-
-// This class is shared by all tabs in each browser window.
-EsiProcessor.BrowserOverlay =  // class
-{
-    pageLoadHandler: function(event)
-    {
-        if (event.originalTarget instanceof HTMLDocument)
+function EsiBrowserOverlay() {
+   //this.init();
+        var hostListPref = Application.prefs.get("extensions.esi_processor.hostlist");        
+        if ( hostListPref != null && hostListPref.value.length > 0 )
         {
+            this.hostList = hostListPref.value.split( /,*\s+/, 100);
+        } else
+        {
+            this.hostList = null;
+        }
+
+        var domainChangePref = Application.prefs.get("extensions.esi_processor.allowdomainvaluechange");
+        if ( domainChangePref != null )
+        {
+            this.allowDomainValueChange = domainChangePref.value;
+        } else
+        {
+            this.allowDomainValueChange = false;
+        }
+
+        Components.utils.reportError("init: chg: " + this.allowDomainValueChange + " and len: " + this.hostList.length );
+}
+
+// TODO: Get this class to be shared by all tabs in each browser window.
+EsiBrowserOverlay.prototype =  // class
+{
+    hostList : null,
+    
+    allowDomainValueChange : false,
+    
+    numTimesCalled : 0,
+
+    init2 : function()
+    {
+        var hostListPref = Application.prefs.get("extensions.esi_processor.hostlist");        
+        if ( hostListPref != null && hostListPref.value.length > 0 )
+        {
+            this.hostList = hostListPref.value.split( /,*\s+/, 100);
+        } else
+        {
+            this.hostList = null;
+        }
+
+        var domainChangePref = Application.prefs.get("extensions.esi_processor.allowdomainvaluechange");
+        if ( domainChangePref != null )
+        {
+            this.allowDomainValueChange = domainChangePref.value;
+        } else
+        {
+            this.allowDomainValueChange = false;
+        }
+        
+        alert("init2: chg: " + this.allowDomainValueChange + " and len: " + this.hostList.length );
+    },
+
+     reloadPrefs : function()
+    {
+        window.alert("not yet implemented.");
+    },
+
+    reporter : function(event)
+    {
+        if (!event)
+        {
+            Components.utils.reportError("in reporter. chg: " + this.allowDomainValueChange + " and len: " + this.hostList + ". called: " + this.numTimesCalled++);
+        } else if (event && event.originalTarget instanceof HTMLDocument)
+        {
+            Components.utils.reportError("in reporter. chg: " + this.allowDomainValueChange + " and len: " + this.hostList + ". url is " + event.originalTarget.defaultView.location + ". called: " + this.numTimesCalled++);
+        }
+    },
+
+    pageLoadHandler : function(event)
+    {
+        // TODO: check for chrome:// url and skip it
+        if (event.originalTarget instanceof HTMLDocument &&
+            event.originalTarget.defaultView.location.protocol != 'about:')
+        {
+            Components.utils.reportError("in pageLoad Hdlr. chg: " + this.allowDomainValueChange + " and len: " + this.hostList + ". url proto is " + event.originalTarget.defaultView.location.protocol + ". called: " + this.numTimesCalled++);
+
             var freshDoc = event.originalTarget; // we don't care about defaultView property
             
             if (freshDoc.domain != 'jonatkinson.home.mindspring.com')  { return; }
+            
+            Components.utils.reportError("inhandler. chg: " + this.allowDomainValueChange);
+            Components.utils.reportError("inhandler. and len: " + this.hostList );
 
             var esiTags = freshDoc.getElementsByTagName("esi:include");
-            //FIXME: fix the odd nested behavior of esi tags in the DOM.
-            // things to try: 1) confirm that Firfox does this for this tag w/o this js code.
-            // if so, research why. dos it do it with block tags and inline tags? (<div />)
-            // does it do it with any tag that it doesnt know specifically can be a single tag?
-            // 2) double-check there isn't a bug w/ the use of esiTags.length or anything else live
-            // 3) try setting up a non-live nodelist for use by the main XHR code
-            // 4) try removing the esi tag entirely and replacing it with the results
-            // if any children, move them up. perhaps go in reverse order for this.
-            // try just moving the children up in reverse order.
 
             var esiRequests = new Array(esiTags.length);
             for (var i = esiTags.length -1; i >= 0; i--)
@@ -32,7 +94,7 @@ EsiProcessor.BrowserOverlay =  // class
 
                 let j = i;
 
-                esiRequests[i].onreadystatechange = function(event) {
+                esiRequests[i].onreadystatechange = function( event ) {
                     if (this.readyState != 4)  { return; }
 
                     let esiContent = this.responseText;
@@ -44,6 +106,7 @@ EsiProcessor.BrowserOverlay =  // class
                     let esiContentElement = freshDoc.createElement("span");
                     esiContentElement.id = "esi_processor-" + j;
                     esiContentElement.innerHTML = esiContent;
+                    // TODO: try removing the esi tag entirely and replacing it with the results
                     //esiTags[j].appendChild(esiContentElement);
                     esiTags[j].parentNode.insertBefore(esiContentElement, esiTags[j]);
                     
@@ -65,8 +128,29 @@ EsiProcessor.BrowserOverlay =  // class
 
 };
 
+/*
+    if ("undefined" == typeof(EsiBrowserOverlay))
+    {
+        overlay = new EsiBrowserOverlay();
+    };
+*/
 
+function pageLoadHandler( event )
+{
+    // TODO: Try to set a global overlay instance, and then reference it here.
+    /*
+    if ("undefined" == typeof( overlay )) {
+        var overlay = new EsiBrowserOverlay();
+    };
+    */
+    
+    var overlay = new EsiBrowserOverlay();
+    overlay.pageLoadHandler( event );
+}
 
 window.addEventListener("load", function () {
-  gBrowser.addEventListener("load", EsiProcessor.BrowserOverlay.pageLoadHandler, true);
+    Components.utils.reportError('about to set gbrowser handler.');
+    gBrowser.addEventListener("load", pageLoadHandler, true);
+    Components.utils.reportError('done with setting gbrowser handler.');
 }, false);
+     
