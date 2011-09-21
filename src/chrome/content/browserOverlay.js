@@ -65,7 +65,8 @@ EsiBrowserOverlay.prototype =  // class
 
     pageLoadHandler : function(event)
     {
-        // TODO: check for chrome:// url and skip it
+        // TODO: Extract method!!!
+        // TODO: Do I need to check for chrome:// url and skip it?
         if (event.originalTarget instanceof HTMLDocument &&
             event.originalTarget.defaultView.location.protocol != 'about:')
         {
