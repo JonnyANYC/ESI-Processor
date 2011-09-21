@@ -3,10 +3,24 @@ function EsiBrowserOverlay() {
         var hostListPref = Application.prefs.get("extensions.esi_processor.hostlist");        
         if ( hostListPref != null && hostListPref.value.length > 0 )
         {
-            this.hostList = hostListPref.value.split( /,*\s+/, 100);
+            // Break up the host list into individual hosts. A comma, spaces, or both are accepted delimiters.
+            var hostListPrefArray = hostListPref.value.split( /,+|\s+|,\s+/, 100);
+
+            this.hostList = new Array();
+            // A host entry is allowed if it contains alphanumerics, periods, and dashes.
+            // FIXME: If possible, reject host entries that include an underscore, which is included in \w.
+            var allowedHostPattern = /^[\w\.-]+$/;
+
+            for ( var hl = 0; hl < hostListPrefArray.length; hl++)
+            {
+                if ( hostListPrefArray[hl].length > 0 &&
+                     allowedHostPattern.test( hostListPrefArray[hl] ) )
+                    { this.hostList[hl] = hostListPrefArray[hl].toLocaleLowerCase(); }
+            }
+
         } else
         {
-            this.hostList = null;
+            this.hostList = new Array(0);
         }
 
         var domainChangePref = Application.prefs.get("extensions.esi_processor.allowdomainvaluechange");
@@ -30,34 +44,14 @@ EsiBrowserOverlay.prototype =  // class
     
     numTimesCalled : 0,
 
-    init2 : function()
-    {
-        var hostListPref = Application.prefs.get("extensions.esi_processor.hostlist");        
-        if ( hostListPref != null && hostListPref.value.length > 0 )
-        {
-            this.hostList = hostListPref.value.split( /,*\s+/, 100);
-        } else
-        {
-            this.hostList = null;
-        }
-
-        var domainChangePref = Application.prefs.get("extensions.esi_processor.allowdomainvaluechange");
-        if ( domainChangePref != null )
-        {
-            this.allowDomainValueChange = domainChangePref.value;
-        } else
-        {
-            this.allowDomainValueChange = false;
-        }
-        
-        alert("init2: chg: " + this.allowDomainValueChange + " and len: " + this.hostList.length );
-    },
-
      reloadPrefs : function()
     {
         window.alert("not yet implemented.");
     },
 
+    /*
+     Not in use. Retained only for future debugging needs.
+    */
     reporter : function(event)
     {
         if (!event)
@@ -77,12 +71,21 @@ EsiBrowserOverlay.prototype =  // class
         {
             Components.utils.reportError("in pageLoad Hdlr. chg: " + this.allowDomainValueChange + " and len: " + this.hostList + ". url proto is " + event.originalTarget.defaultView.location.protocol + ". called: " + this.numTimesCalled++);
 
-            var freshDoc = event.originalTarget; // we don't care about defaultView property
+            var freshDoc = event.originalTarget;
             
-            if (freshDoc.domain != 'jonatkinson.home.mindspring.com')  { return; }
-            
-            Components.utils.reportError("inhandler. chg: " + this.allowDomainValueChange);
-            Components.utils.reportError("inhandler. and len: " + this.hostList );
+            var hostNameMatch = false;
+            var requestHostNameLowerCase = freshDoc.domain.toLocaleLowerCase();
+
+            for ( var hl = 0; hl < this.hostList.length; hl++ )
+            {
+                if ( requestHostNameLowerCase.indexOf( this.hostList[hl] ) != -1 )
+                {
+                    hostNameMatch = true;
+                    break;
+                }
+            }
+
+            if (!hostNameMatch)  { return; }
 
             var esiTags = freshDoc.getElementsByTagName("esi:include");
 
@@ -95,6 +98,7 @@ EsiBrowserOverlay.prototype =  // class
                 let j = i;
 
                 esiRequests[i].onreadystatechange = function( event ) {
+
                     if (this.readyState != 4)  { return; }
 
                     let esiContent = this.responseText;
@@ -109,7 +113,7 @@ EsiBrowserOverlay.prototype =  // class
                     // TODO: try removing the esi tag entirely and replacing it with the results
                     //esiTags[j].appendChild(esiContentElement);
                     esiTags[j].parentNode.insertBefore(esiContentElement, esiTags[j]);
-                    
+
                     while (esiTags[j].hasChildNodes())
                     {
                         esiTags[j].parentNode.insertBefore(esiTags[j].childNodes[0], esiTags[j]);
@@ -127,13 +131,6 @@ EsiBrowserOverlay.prototype =  // class
     }
 
 };
-
-/*
-    if ("undefined" == typeof(EsiBrowserOverlay))
-    {
-        overlay = new EsiBrowserOverlay();
-    };
-*/
 
 function pageLoadHandler( event )
 {
