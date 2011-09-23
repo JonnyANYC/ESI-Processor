@@ -1,43 +1,12 @@
 function EsiBrowserOverlay() {
-   //this.init();
-        var hostListPref = Application.prefs.get("extensions.esi_processor.hostlist");        
-        if ( hostListPref != null && hostListPref.value.length > 0 )
-        {
-            // Break up the host list into individual hosts. A comma, spaces, or both are accepted delimiters.
-            var hostListPrefArray = hostListPref.value.split( /,+|\s+|,\s+/, 100);
-
-            this.hostList = new Array();
-            // A host entry is allowed if it contains alphanumerics, periods, and dashes.
-            // FIXME: If possible, reject host entries that include an underscore, which is included in \w.
-            var allowedHostPattern = /^[\w\.-]+$/;
-
-            for ( var hl = 0; hl < hostListPrefArray.length; hl++)
-            {
-                if ( hostListPrefArray[hl].length > 0 &&
-                     allowedHostPattern.test( hostListPrefArray[hl] ) )
-                    { this.hostList[hl] = hostListPrefArray[hl].toLocaleLowerCase(); }
-            }
-
-        } else
-        {
-            this.hostList = new Array(0);
-        }
-
-        var domainChangePref = Application.prefs.get("extensions.esi_processor.allowdomainvaluechange");
-        if ( domainChangePref != null )
-        {
-            this.allowDomainValueChange = domainChangePref.value;
-        } else
-        {
-            this.allowDomainValueChange = false;
-        }
-
-        Components.utils.reportError("init: chg: " + this.allowDomainValueChange + " and len: " + this.hostList.length );
+   this.init();
 }
 
 // TODO: Get this class to be shared by all tabs in each browser window.
 EsiBrowserOverlay.prototype =  // class
 {
+    documentHost : null,
+    
     hostList : null,
     
     allowDomainValueChange : false,
@@ -46,7 +15,7 @@ EsiBrowserOverlay.prototype =  // class
 
      reloadPrefs : function()
     {
-        window.alert("not yet implemented.");
+        Components.utils.reportError("reloadPrefs: not implemented yet.");
     },
 
     /*
@@ -90,9 +59,14 @@ EsiBrowserOverlay.prototype =  // class
 
             var esiTags = freshDoc.getElementsByTagName("esi:include");
 
+            if ( esiTags.length )  this.checkForHostNameMismatches( esiTags );
+
             var esiRequests = new Array(esiTags.length);
             for (var i = esiTags.length -1; i >= 0; i--)
             {
+                // compaer host names
+                
+                
                 esiRequests[i] = new XMLHttpRequest();
                 esiRequests[i].open('GET', esiTags[i].getAttribute('src'), true);
 
@@ -129,6 +103,62 @@ EsiBrowserOverlay.prototype =  // class
 
         // FIXME: remove handler now? or needed for reloads?
         }
+    },
+    
+    checkForHostNameMismatches : function( esiTags )
+    {
+        Components.utils.reportError("checkForHostNameMismatches: not implemented yet.");
+    },
+    
+    initialized : false,
+
+    init : function()
+    {
+        if ( this.initialized )  return;
+
+        var hostListPref = Application.prefs.get("extensions.esi_processor.hostlist");        
+        if ( hostListPref != null && hostListPref.value.length > 0 )
+        {
+            // Break up the host list into individual hosts. A comma, spaces, or both are accepted delimiters.
+            var hostListPrefArray = hostListPref.value.split( /,+|\s+|,\s+/, 100);
+
+            this.hostList = new Array();
+            // A host entry is allowed if it contains alphanumerics, periods, and dashes.
+            // FIXME: If possible, reject host entries that include an underscore, which is included in \w.
+            var allowedHostPattern = /^[\w\.-]+$/;
+
+            for ( var hl = 0; hl < hostListPrefArray.length; hl++)
+            {
+                if ( hostListPrefArray[hl].length > 0 &&
+                     allowedHostPattern.test( hostListPrefArray[hl] ) )
+                    { this.hostList[hl] = hostListPrefArray[hl].toLocaleLowerCase(); }
+            }
+
+        } else
+        {
+            this.hostList = new Array(0);
+        }
+
+        var domainChangePref = Application.prefs.get("extensions.esi_processor.allowdomainvaluechange");
+        if ( domainChangePref != null )
+        {
+            this.allowDomainValueChange = domainChangePref.value;
+        } else
+        {
+            this.allowDomainValueChange = false;
+        }
+
+        this.documentHost = this.extractHostNameFromUrl( window.location.toString() );
+
+        this.initialized = true;
+        Components.utils.reportError("init: chg: " + this.allowDomainValueChange + " and len: " + this.hostList.length );
+
+    },
+
+    extractHostNameFromUrl : function( url )
+    {
+        var urlHostMatch = url.match(/^http:\/\/([\w\.-]+)/i);
+        return urlHostMatch ? urlHostMatch[1] : null;
     }
 
 };
