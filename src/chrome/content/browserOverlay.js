@@ -39,7 +39,7 @@ EsiBrowserOverlay.prototype =  // class
         if (event.originalTarget instanceof HTMLDocument &&
             event.originalTarget.defaultView.location.protocol != 'about:')
         {
-            Components.utils.reportError("in pageLoad Hdlr. chg: " + this.allowDomainValueChange + " and len: " + this.hostList + ". url proto is " + event.originalTarget.defaultView.location.protocol + ". called: " + this.numTimesCalled++);
+            Components.utils.reportError("in pageLoad Hdlr. chg: " + this.allowDomainValueChange + " and hostlist: " + this.hostList + ". url proto is " + event.originalTarget.defaultView.location.protocol + ". called: " + this.numTimesCalled++);
 
             var freshDoc = event.originalTarget;
             
@@ -55,26 +55,52 @@ EsiBrowserOverlay.prototype =  // class
                 }
             }
 
-            if (!hostNameMatch)  { return; }
+            if (!hostNameMatch)  { Components.utils.reportError("didn't match host."); return; }
+
+            Components.utils.reportError("matched host: " + requestHostNameLowerCase);
 
             var esiTags = freshDoc.getElementsByTagName("esi:include");
 
-            if ( esiTags.length )  this.checkForHostNameMismatches( esiTags );
+            // FIXME: Remove this if it won't be used.
+            // if ( esiTags.length )  this.checkForHostNameMismatches( esiTags );
 
             var esiRequests = new Array(esiTags.length);
             for (var i = esiTags.length -1; i >= 0; i--)
             {
-                // compaer host names
+                // FIXME: Fix the DOM and then bail if there's no src attribute.
                 
+                // TODO: Try using netscape.security.PrivilegeManager.enablePrivilege("UniversalBrowserRead")
+                // This should work for FF v3 and 4.
                 
+                // TODO: Find out if esi src attributes can be relative URLs.
+
+                // FIXME: Remove this if it won't be used.
+                // var esiHostName = this.extractHostNameFromUrl( esiTags[i].getAttribute('src') );
+
                 esiRequests[i] = new XMLHttpRequest();
+                
+                // FIXME: Check the usefulness of this feature, and then cast vendorSub to a float.
+                if ( true || window.navigator.vendorSub >= 3.5 )
+                {
+                    // Check if req.onerror = onError works for FF v3.0 and 3.1, or maybe the below works w/ FF3.1
+                    esiRequests[i].addEventListener("error", function( event ) {
+                        Components.utils.reportError("XHR error! status, errortext: " +
+                            event.target.status + ", " + event.target.errorText ); },
+                        false);
+                }
+
                 esiRequests[i].open('GET', esiTags[i].getAttribute('src'), true);
+                
+                // TODO: If the ESI spec can't send cookies, then try to disable them in the request.
+                // Use req.sendCredentials = false if it works, or maybe a channel flag.
+                // TODO: Consider adding a user option to enable browser caching of ESI content.
+                esiRequests[i].channel.loadFlags |= Components.interfaces.nsIRequest.LOAD_BYPASS_CACHE;
 
                 let j = i;
 
                 esiRequests[i].onreadystatechange = function( event ) {
 
-                    if (this.readyState != 4)  { return; }
+                    if (this.readyState != 4)  { Components.utils.reportError("XHR readystate: " + this.readyState); return; }
 
                     let esiContent = this.responseText;
                     if(this.status != 200)
@@ -147,20 +173,39 @@ EsiBrowserOverlay.prototype =  // class
         {
             this.allowDomainValueChange = false;
         }
-
-        this.documentHost = this.extractHostNameFromUrl( window.location.toString() );
+        
+        this.documentHost = this.extractHostNameFromUrl( content.window.location.toString() );
 
         this.initialized = true;
-        Components.utils.reportError("init: chg: " + this.allowDomainValueChange + " and len: " + this.hostList.length );
+        Components.utils.reportError("init: chg: " + this.allowDomainValueChange +
+            "; len: " + this.hostList.length + "; host: " + this.documentHost );
 
     },
 
+    urlHostMatchPattern : /^http:\/\/([\w\.-]+)/i,
+
     extractHostNameFromUrl : function( url )
     {
-        var urlHostMatch = url.match(/^http:\/\/([\w\.-]+)/i);
+        var urlHostMatch = url.match( this.urlHostMatchPattern );
         return urlHostMatch ? urlHostMatch[1] : null;
-    }
+    },
 
+    urlDomainMatchPattern : /^http:\/\/([\w-]\.)+([\w-])/i,
+
+    extractDomainFromUrl : function( url )
+    {
+        var urlDomainMatch = url.match( this.urlDomainMatchPattern );
+        
+        var domain = null;
+        
+        var matchLength = urlDomainMatch.length;
+        
+        if ( matchLength )
+        {
+            domain = urlDomainMatch[ matchLength-1 ] + urlDomainMatch[ matchLength ] 
+        }
+        return domain;
+    }
 };
 
 function pageLoadHandler( event )
