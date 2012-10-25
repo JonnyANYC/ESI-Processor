@@ -157,7 +157,7 @@ EsiBrowserOverlay.prototype =  // class
             {
                 if ( hostListPrefArray[hl].length > 0 &&
                      allowedHostPattern.test( hostListPrefArray[hl] ) )
-                    { this.hostList[hl] = hostListPrefArray[hl].toLocaleLowerCase(); }
+                    { this.hostList[hl] = hostListPrefArray[hl].toLocaleLowerCase(); // FIXME: Shouldn't we append to this.hostList[this.hostList.length]? }
             }
 
         } else
