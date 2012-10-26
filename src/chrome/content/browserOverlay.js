@@ -206,12 +206,7 @@ function EsiBrowserOverlay() {
 var esiBrowserOverlay;
 
 esiBrowserOverlayPageLoadHandler = function( event ) {
-    // TODO: Try to set a global overlay instance, and then reference it here.
-    /*
-    if ("undefined" == typeof( overlay )) {
-        var overlay = new EsiBrowserOverlay();
-    };
-    */
+
     if ("undefined" == typeof( esiBrowserOverlay )) {
         Components.utils.reportError('creating a new ESI overlay object.');
         esiBrowserOverlay = new EsiBrowserOverlay();
