@@ -1,28 +1,20 @@
+/*
 function EsiBrowserOverlay() {
    this.init();
 }
+*/
 
 // TODO: Get this class to be shared by all tabs in each browser window.
-EsiBrowserOverlay.prototype =  // class
-{
-    documentHost : null,
-    
-    hostList : null,
-    
-    allowDomainValueChange : false,
-    
-    numTimesCalled : 0,
+function EsiBrowserOverlay() { // class
 
-     reloadPrefs : function()
-    {
+     this.reloadPrefs = function() {
         Components.utils.reportError("reloadPrefs: not implemented yet.");
-    },
+    };
 
     /*
      Not in use. Retained only for future debugging needs.
     */
-    reporter : function(event)
-    {
+    this.reporter = function(event) {
         if (!event)
         {
             Components.utils.reportError("in reporter. chg: " + this.allowDomainValueChange + " and len: " + this.hostList + ". called: " + this.numTimesCalled++);
@@ -30,10 +22,9 @@ EsiBrowserOverlay.prototype =  // class
         {
             Components.utils.reportError("in reporter. chg: " + this.allowDomainValueChange + " and len: " + this.hostList + ". url is " + event.originalTarget.defaultView.location + ". called: " + this.numTimesCalled++);
         }
-    },
+    };
 
-    pageLoadHandler : function(event)
-    {
+    this.onPageLoad = function(event) {
         // TODO: Extract method!!!
         // TODO: Do I need to check for chrome:// url and skip it?
         if (event.originalTarget instanceof HTMLDocument &&
@@ -129,18 +120,47 @@ EsiBrowserOverlay.prototype =  // class
 
         // FIXME: remove handler now? or needed for reloads?
         }
-    },
+    };
     
-    checkForHostNameMismatches : function( esiTags )
-    {
+    this.checkForHostNameMismatches = function( esiTags ) {
         Components.utils.reportError("checkForHostNameMismatches: not implemented yet.");
-    },
-    
-    initialized : false,
+    };
 
-    init : function()
-    {
-        if ( this.initialized )  return;
+    this.urlHostMatchPattern = /^http:\/\/([\w\.-]+)/i;
+
+    this.extractHostNameFromUrl = function( url ) {
+        var urlHostMatch = url.match( this.urlHostMatchPattern );
+        return urlHostMatch ? urlHostMatch[1] : null;
+    };
+
+    this.urlDomainMatchPattern = /^http:\/\/([\w-]\.)+([\w-])/i;
+
+    this.extractDomainFromUrl = function( url ) {
+        var urlDomainMatch = url.match( this.urlDomainMatchPattern );
+        
+        var domain = null;
+        
+        var matchLength = urlDomainMatch.length;
+        
+        if ( matchLength )
+        {
+            domain = urlDomainMatch[ matchLength-1 ] + urlDomainMatch[ matchLength ] 
+        }
+        return domain;
+    };
+
+
+    this._initialized = false;
+
+    this._init = function() {
+
+        if ( this._initialized )  return;
+
+        this.documentHost = null;
+        this.hostList = null;
+        this.allowDomainValueChange = false;
+        this.numTimesCalled = 0;
+
 
         var hostListPref = Application.prefs.get("extensions.esi_processor.hostlist");        
         if ( hostListPref != null && hostListPref.value.length > 0 )
@@ -157,7 +177,7 @@ EsiBrowserOverlay.prototype =  // class
             {
                 if ( hostListPrefArray[hl].length > 0 &&
                      allowedHostPattern.test( hostListPrefArray[hl] ) )
-                    { this.hostList[hl] = hostListPrefArray[hl].toLocaleLowerCase(); // FIXME: Shouldn't we append to this.hostList[this.hostList.length]? }
+                    { this.hostList[hl] = hostListPrefArray[hl].toLocaleLowerCase();  } // FIXME: Shouldn't we append to this.hostList[this.hostList.length]?
             }
 
         } else
@@ -174,42 +194,23 @@ EsiBrowserOverlay.prototype =  // class
             this.allowDomainValueChange = false;
         }
         
-        this.documentHost = this.extractHostNameFromUrl( content.window.location.toString() );
+        this.documentHost = this.extractHostNameFromUrl( window.location.toString() );
 
-        this.initialized = true;
+        this._initialized = true;
         Components.utils.reportError("init: chg: " + this.allowDomainValueChange +
             "; len: " + this.hostList.length + "; host: " + this.documentHost );
 
-    },
+    };
 
-    urlHostMatchPattern : /^http:\/\/([\w\.-]+)/i,
+    this._init();
 
-    extractHostNameFromUrl : function( url )
-    {
-        var urlHostMatch = url.match( this.urlHostMatchPattern );
-        return urlHostMatch ? urlHostMatch[1] : null;
-    },
-
-    urlDomainMatchPattern : /^http:\/\/([\w-]\.)+([\w-])/i,
-
-    extractDomainFromUrl : function( url )
-    {
-        var urlDomainMatch = url.match( this.urlDomainMatchPattern );
-        
-        var domain = null;
-        
-        var matchLength = urlDomainMatch.length;
-        
-        if ( matchLength )
-        {
-            domain = urlDomainMatch[ matchLength-1 ] + urlDomainMatch[ matchLength ] 
-        }
-        return domain;
-    }
 };
 
-function pageLoadHandler( event )
-{
+if ("undefined" == typeof( esiBrowserOverlay )) {
+        var esiBrowserOverlay = new EsiBrowserOverlay();
+};
+
+esiBrowserOverlayPageLoadHandler = function( event ) {
     // TODO: Try to set a global overlay instance, and then reference it here.
     /*
     if ("undefined" == typeof( overlay )) {
@@ -217,13 +218,11 @@ function pageLoadHandler( event )
     };
     */
     
-    var overlay = new EsiBrowserOverlay();
-    overlay.pageLoadHandler( event );
-}
+    esiBrowserOverlay.onPageLoad( event );
+};
 
 window.addEventListener("load", function () {
     Components.utils.reportError('about to set gbrowser handler.');
-    gBrowser.addEventListener("load", pageLoadHandler, true);
+    gBrowser.addEventListener("load", esiBrowserOverlay.onPageLoad, true);
     Components.utils.reportError('done with setting gbrowser handler.');
 }, false);
-     
