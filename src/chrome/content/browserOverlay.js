@@ -1,11 +1,4 @@
-/*
 function EsiBrowserOverlay() {
-   this.init();
-}
-*/
-
-// TODO: Get this class to be shared by all tabs in each browser window.
-function EsiBrowserOverlay() { // class
 
      this.reloadPrefs = function() {
         Components.utils.reportError("reloadPrefs: not implemented yet.");
@@ -27,8 +20,11 @@ function EsiBrowserOverlay() { // class
     this.onPageLoad = function(event) {
         // TODO: Extract method!!!
         // TODO: Do I need to check for chrome:// url and skip it?
+        // TODO: Consider skipping file: requests. Or make it a config option. First test if I can make Ajax requests from a file: page.
+        // TODO: check for all other legal protocols supported by Firefox.
         if (event.originalTarget instanceof HTMLDocument &&
-            event.originalTarget.defaultView.location.protocol != 'about:')
+            event.originalTarget.defaultView.location.protocol != 'about:' && 
+            event.originalTarget.defaultView.location.protocol != 'chrome:' )
         {
             Components.utils.reportError("in pageLoad Hdlr. chg: " + this.allowDomainValueChange + " and hostlist: " + this.hostList + ". url proto is " + event.originalTarget.defaultView.location.protocol + ". called: " + this.numTimesCalled++);
 
@@ -206,9 +202,8 @@ function EsiBrowserOverlay() { // class
 
 };
 
-if ("undefined" == typeof( esiBrowserOverlay )) {
-        var esiBrowserOverlay = new EsiBrowserOverlay();
-};
+
+var esiBrowserOverlay;
 
 esiBrowserOverlayPageLoadHandler = function( event ) {
     // TODO: Try to set a global overlay instance, and then reference it here.
@@ -217,12 +212,16 @@ esiBrowserOverlayPageLoadHandler = function( event ) {
         var overlay = new EsiBrowserOverlay();
     };
     */
+    if ("undefined" == typeof( esiBrowserOverlay )) {
+        Components.utils.reportError('creating a new ESI overlay object.');
+        esiBrowserOverlay = new EsiBrowserOverlay();
+    };
     
     esiBrowserOverlay.onPageLoad( event );
 };
 
 window.addEventListener("load", function () {
     Components.utils.reportError('about to set gbrowser handler.');
-    gBrowser.addEventListener("load", esiBrowserOverlay.onPageLoad, true);
+    gBrowser.addEventListener("load", esiBrowserOverlayPageLoadHandler, true);
     Components.utils.reportError('done with setting gbrowser handler.');
 }, false);
