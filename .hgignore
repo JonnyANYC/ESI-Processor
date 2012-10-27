@@ -1,0 +1,4 @@
+syntax: regexp
+
+# Ignore the build directory.
+^build/
