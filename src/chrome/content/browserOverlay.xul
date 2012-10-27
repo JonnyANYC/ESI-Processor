@@ -10,4 +10,38 @@
   <script type="application/x-javascript"
     src="chrome://esi_processor/content/browserOverlay.js" />
 
+  <menupopup id="menu_ToolsPopup">
+    <menu id="esi_processor-main-menu" label="ESI Processor"
+      accesskey="E"
+      insertbefore="devToolsEndSeparator">
+      <menupopup>
+        <menuitem id="esi_processor-enabledisable"
+          label="Enable / Disable"
+          accesskey="E"
+          oncommand="esiBrowserOverlay.enabledisable(event);" />
+        <menuitem id="esi_processor-config"
+          label="Options..."
+          accesskey="O"
+          oncommand="esiBrowserOverlay.configure(event);" />
+      </menupopup>
+    </menu>
+  </menupopup>
+
+  <vbox id="appmenuSecondaryPane">
+    <menu id="esi_processor-main-menu-2" label="ESI Processor"
+      accesskey="E"
+      insertafter="appmenu_addons">
+      <menupopup>
+        <menuitem id="esi_processor-enabledisable"
+          label="Enable / Disable"
+          accesskey="E"
+          oncommand="esiBrowserOverlay.enabledisable(event);" />
+        <menuitem id="esi_processor-config"
+          label="Options..."
+          accesskey="O"
+          oncommand="esiBrowserOverlay.configure(event);" />
+      </menupopup>
+    </menu>
+  </vbox>
+
 </overlay>

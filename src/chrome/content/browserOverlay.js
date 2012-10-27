@@ -46,6 +46,9 @@ function EsiBrowserOverlay() {
 
             Components.utils.reportError("matched host: " + requestHostNameLowerCase);
 
+            // TODO: Remove if not needed.
+            var insertedEsiContent = false;
+
             var esiTags = freshDoc.getElementsByTagName("esi:include");
 
             // FIXME: Remove this if it won't be used.
@@ -95,12 +98,16 @@ function EsiBrowserOverlay() {
                         esiContent = 'ESI error for URL ' + esiTags[j].getAttribute('src') + ': ' + this.statusText;
                     }
 
-                    let esiContentElement = freshDoc.createElement("span");
+                    let esiContentElement = freshDoc.createElement("div");
+                    esiContentElement.style.position = "static";
+                    esiContentElement.style.display = "inline";
+                    esiContentElement.className = "esi_processor";
                     esiContentElement.id = "esi_processor-" + j;
                     esiContentElement.innerHTML = esiContent;
                     // TODO: try removing the esi tag entirely and replacing it with the results
                     //esiTags[j].appendChild(esiContentElement);
-                    esiTags[j].parentNode.insertBefore(esiContentElement, esiTags[j]);
+                    esiTags[j].parentNode.insertBefore(esiContentElement, esiTags[j]);                    
+                    insertedEsiContent = true;
 
                     while (esiTags[j].hasChildNodes())
                     {
@@ -118,6 +125,15 @@ function EsiBrowserOverlay() {
         }
     };
     
+
+    this.configure = function( event ) {
+        alert("configure: not implemented yet.");
+    };
+
+    this.enabledisable = function( event ) {
+        alert("enabledisable: not implemented yet.");
+    };
+
     this.checkForHostNameMismatches = function( esiTags ) {
         Components.utils.reportError("checkForHostNameMismatches: not implemented yet.");
     };
@@ -152,7 +168,6 @@ function EsiBrowserOverlay() {
 
         if ( this._initialized )  return;
 
-        this.documentHost = null;
         this.hostList = null;
         this.allowDomainValueChange = false;
         this.numTimesCalled = 0;
@@ -190,11 +205,9 @@ function EsiBrowserOverlay() {
             this.allowDomainValueChange = false;
         }
         
-        this.documentHost = this.extractHostNameFromUrl( window.location.toString() );
-
         this._initialized = true;
-        Components.utils.reportError("init: chg: " + this.allowDomainValueChange +
-            "; len: " + this.hostList.length + "; host: " + this.documentHost );
+        Components.utils.reportError("init done. chg: " + this.allowDomainValueChange +
+            "; hostlist len: " + this.hostList.length);
 
     };
 
@@ -216,7 +229,5 @@ esiBrowserOverlayPageLoadHandler = function( event ) {
 };
 
 window.addEventListener("load", function () {
-    Components.utils.reportError('about to set gbrowser handler.');
     gBrowser.addEventListener("load", esiBrowserOverlayPageLoadHandler, true);
-    Components.utils.reportError('done with setting gbrowser handler.');
 }, false);
