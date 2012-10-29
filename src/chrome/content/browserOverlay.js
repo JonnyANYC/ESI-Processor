@@ -127,7 +127,29 @@ function EsiBrowserOverlay() {
     
 
     this.configure = function( event ) {
-        alert("configure: not implemented yet.");
+        // alert("configure: not implemented yet.");
+        var params = { 
+            inn: {
+                enabled: true,
+                hostList: "", 
+                allowDomainValueChange: false
+            }, 
+            out: null
+        };
+
+        window.openDialog(  "chrome://esi_processor/content/configure.xul", 
+                            "",
+                            "chrome, dialog, modal, resizable=yes", 
+                            params ).focus();
+
+        if (params.out) {
+            // FIXME: Persist selections to disk.
+            // FIXME: Implement an enable/disable feature and let users toggle it here.
+            Components.utils.reportError("Configure dialog saved. new host list: " + params.out.hostList);
+        } else {
+            Components.utils.reportError("Configure dialog cancelled.");
+        }
+
     };
 
     this.enabledisable = function( event ) {
