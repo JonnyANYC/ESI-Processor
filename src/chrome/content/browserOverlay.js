@@ -98,12 +98,29 @@ function EsiBrowserOverlay() {
                         esiContent = 'ESI error for URL ' + esiTags[j].getAttribute('src') + ': ' + this.statusText;
                     }
 
-                    let esiContentElement = freshDoc.createElement("div");
-                    esiContentElement.style.position = "static";
-                    esiContentElement.style.display = "inline";
-                    esiContentElement.className = "esi_processor";
-                    esiContentElement.id = "esi_processor-" + j;
-                    esiContentElement.innerHTML = esiContent;
+                    let esiContentElement;
+                    //FIXME: create an extension config param for security level.
+                    let esiConfigSecurityLevel = "paranoid";
+                    if (esiConfigSecurityLevel == "open")
+                    {
+                        // FIXME: find something that will execute code, but only unprivelidged.
+                    } else if (esiConfigSecurityLevel == "self_contained_only") {
+                        esiContentElement = freshDoc.createElement("iframe");
+                        esiContentElement.style.position = "static";
+                        esiContentElement.style.display = "inline";
+                        esiContentElement.className = "esi_processor";
+                        esiContentElement.id = "esi_processor-" + j;
+                        //esiContentElement.setAttribute("type", "content");
+                        esiContentElement.setAttribute("src", "data:text/html," + encodeURIComponent(esiContent));
+                    } else {
+                        esiContentElement = freshDoc.createElement("div");
+                        esiContentElement.style.position = "static";
+                        esiContentElement.style.display = "inline";
+                        esiContentElement.className = "esi_processor";
+                        esiContentElement.id = "esi_processor-" + j;
+                        esiContentElement.innerHTML = esiContent;
+                    }                        
+
                     // TODO: try removing the esi tag entirely and replacing it with the results
                     //esiTags[j].appendChild(esiContentElement);
                     esiTags[j].parentNode.insertBefore(esiContentElement, esiTags[j]);                    
@@ -131,7 +148,7 @@ function EsiBrowserOverlay() {
         var params = { 
             inn: {
                 enabled: true,
-                hostList: "", 
+                hostList: this.hostList.join("\n"), 
                 allowDomainValueChange: false
             }, 
             out: null
@@ -146,6 +163,8 @@ function EsiBrowserOverlay() {
             // FIXME: Persist selections to disk.
             // FIXME: Implement an enable/disable feature and let users toggle it here.
             Components.utils.reportError("Configure dialog saved. new host list: " + params.out.hostList);
+            // FIXME: The EsiBrowserOverlay class isn't shared across windows. Find another means of updating all instances in all windows.
+            this.hostList = params.out.hostList.split("\n");
         } else {
             Components.utils.reportError("Configure dialog cancelled.");
         }
@@ -210,7 +229,7 @@ function EsiBrowserOverlay() {
             {
                 if ( hostListPrefArray[hl].length > 0 &&
                      allowedHostPattern.test( hostListPrefArray[hl] ) )
-                    { this.hostList[hl] = hostListPrefArray[hl].toLocaleLowerCase();  } // FIXME: Shouldn't we append to this.hostList[this.hostList.length]?
+                    { this.hostList.push( hostListPrefArray[hl].toLocaleLowerCase() );  }
             }
 
         } else
