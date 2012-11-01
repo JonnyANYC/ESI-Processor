@@ -88,6 +88,8 @@ function EsiBrowserOverlay() {
                     {
                         // FIXME: find something that will execute code, but only unprivelidged.
                     } else if (esiConfigSecurityLevel == "self_contained_only") {
+                        // FIXME: find a way to render iframes or similar as an inline block.
+                        // FIXME: confirm that any code in an inline like this is not privelidged.
                         esiContentElement = freshDoc.createElement("iframe");
                         esiContentElement.style.position = "static";
                         esiContentElement.style.display = "inline";
