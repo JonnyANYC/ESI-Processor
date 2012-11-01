@@ -23,6 +23,4 @@
         label="Site list"
         newlines="pasteintact" 
         wrap="false" />
-    <checkbox id="esi_processor-configure-allowDomainValueChange" 
-        label="Change the document.domain value when needed" />
 </dialog>

@@ -1,22 +1,5 @@
 function EsiBrowserOverlay() {
 
-     this.reloadPrefs = function() {
-        Components.utils.reportError("reloadPrefs: not implemented yet.");
-    };
-
-    /*
-     Not in use. Retained only for future debugging needs.
-    */
-    this.reporter = function(event) {
-        if (!event)
-        {
-            Components.utils.reportError("in reporter. chg: " + this.allowDomainValueChange + " and len: " + this.hostList + ". called: " + this.numTimesCalled++);
-        } else if (event && event.originalTarget instanceof HTMLDocument)
-        {
-            Components.utils.reportError("in reporter. chg: " + this.allowDomainValueChange + " and len: " + this.hostList + ". url is " + event.originalTarget.defaultView.location + ". called: " + this.numTimesCalled++);
-        }
-    };
-
     this.onPageLoad = function(event) {
         // TODO: Extract method!!!
         // TODO: Do I need to check for chrome:// url and skip it?
@@ -26,7 +9,7 @@ function EsiBrowserOverlay() {
             event.originalTarget.defaultView.location.protocol != 'about:' && 
             event.originalTarget.defaultView.location.protocol != 'chrome:' )
         {
-            Components.utils.reportError("in pageLoad Hdlr. chg: " + this.allowDomainValueChange + " and hostlist: " + this.hostList + ". url proto is " + event.originalTarget.defaultView.location.protocol + ". called: " + this.numTimesCalled++);
+            Components.utils.reportError("in pageLoad Hdlr. hostlist: " + this.hostList + ". url proto is " + event.originalTarget.defaultView.location.protocol + ". called: " + this.numTimesCalled++);
 
             var freshDoc = event.originalTarget;
             
@@ -144,12 +127,11 @@ function EsiBrowserOverlay() {
     
 
     this.configure = function( event ) {
-        // alert("configure: not implemented yet.");
+
         var params = { 
             inn: {
                 enabled: true,
-                hostList: this.hostList.join("\n"), 
-                allowDomainValueChange: false
+                hostList: this.hostList
             }, 
             out: null
         };
@@ -160,15 +142,19 @@ function EsiBrowserOverlay() {
                             params ).focus();
 
         if (params.out) {
-            // FIXME: Persist selections to disk.
             // FIXME: Implement an enable/disable feature and let users toggle it here.
+            // FIXME: When disabled, also consider disabling the listener on the hostlist pref, and any other shutdown / sleep actions.
+            this.hostList = this._sanitizeHostList( params.out.hostList.split("\n") );
+            Application.prefs.setValue("extensions.esi_processor.hostlist", this.hostList.join(","));
             Components.utils.reportError("Configure dialog saved. new host list: " + params.out.hostList);
-            // FIXME: The EsiBrowserOverlay class isn't shared across windows. Find another means of updating all instances in all windows.
-            this.hostList = params.out.hostList.split("\n");
         } else {
             Components.utils.reportError("Configure dialog cancelled.");
         }
+    };
 
+    this.observe = function() {
+        Components.utils.reportError("reloadPrefs: not implemented yet.");
+        // FIXME: set up a listener on the prefs. 
     };
 
     this.enabledisable = function( event ) {
@@ -202,54 +188,52 @@ function EsiBrowserOverlay() {
         return domain;
     };
 
+    this._sanitizeHostList = function( dirtyHostList ) {
+
+        var hostList = new Array();
+        // A host entry is allowed if it contains alphanumerics, periods, and dashes.
+        // FIXME: Reject host lists that are dangerously short, such as e.com, etc.
+        // FIXME: Update the pattern to ignore leading and trailing spaces. AFAIK, JS doesn't have a trim() method.
+        // FIXME: If possible, reject host entries that include an underscore, which is included in \w.
+        var allowedHostPattern = /^[\w-]*\.*[\w-]+\.[\w-]+$/;
+
+        for ( var hl = 0; hl < dirtyHostList.length; hl++)
+        {
+            if ( dirtyHostList[hl] == null || dirtyHostList[hl].length == 0  )  continue;
+            if ( dirtyHostList[hl].toLocaleLowerCase() == 'localhost' || 
+                 allowedHostPattern.test( dirtyHostList[hl] ) )
+                { hostList.push( dirtyHostList[hl].toLocaleLowerCase() );  }
+        }
+
+        return hostList;
+    }
 
     this._initialized = false;
 
     this._init = function() {
 
-        if ( this._initialized )  return;
+        if ( this._initialized )  { 
+            Components.utils.reportError('WARNING: already initialized.');
+            return;
+        }
 
         this.hostList = null;
-        this.allowDomainValueChange = false;
         this.numTimesCalled = 0;
 
 
-        var hostListPref = Application.prefs.get("extensions.esi_processor.hostlist");        
-        if ( hostListPref != null && hostListPref.value.length > 0 )
+        var hostListPref = Application.prefs.getValue("extensions.esi_processor.hostlist", null);        
+        if ( hostListPref != null && hostListPref.length > 0 )
         {
-            // Break up the host list into individual hosts. A comma, spaces, or both are accepted delimiters.
-            var hostListPrefArray = hostListPref.value.split( /,+|\s+|,\s+/, 100);
-
-            this.hostList = new Array();
-            // A host entry is allowed if it contains alphanumerics, periods, and dashes.
-            // FIXME: If possible, reject host entries that include an underscore, which is included in \w.
-            var allowedHostPattern = /^[\w\.-]+$/;
-
-            for ( var hl = 0; hl < hostListPrefArray.length; hl++)
-            {
-                if ( hostListPrefArray[hl].length > 0 &&
-                     allowedHostPattern.test( hostListPrefArray[hl] ) )
-                    { this.hostList.push( hostListPrefArray[hl].toLocaleLowerCase() );  }
-            }
-
+            this.hostList = this._sanitizeHostList( hostListPref.split(",", 25) );
         } else
         {
             this.hostList = new Array(0);
         }
 
-        var domainChangePref = Application.prefs.get("extensions.esi_processor.allowdomainvaluechange");
-        if ( domainChangePref != null )
-        {
-            this.allowDomainValueChange = domainChangePref.value;
-        } else
-        {
-            this.allowDomainValueChange = false;
-        }
-        
-        this._initialized = true;
-        Components.utils.reportError("init done. chg: " + this.allowDomainValueChange +
-            "; hostlist len: " + this.hostList.length);
+        // FIXME: set up a listener on the prefs.
 
+        this._initialized = true;
+        Components.utils.reportError("init done. hostlist len: " + this.hostList.length);
     };
 
     this._init();
