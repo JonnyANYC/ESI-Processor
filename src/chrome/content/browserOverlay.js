@@ -146,7 +146,7 @@ function EsiBrowserOverlay() {
         if (params.out) {
             // FIXME: Implement an enable/disable feature and let users toggle it here.
             // FIXME: When disabled, also consider disabling the listener on the hostlist pref, and any other shutdown / sleep actions.
-            this.hostList = this._sanitizeHostList( params.out.hostList.split("\n") );
+            this.hostList = this._sanitizeHostList( params.out.hostList.split("\n", 25) );
             Application.prefs.setValue("extensions.esi_processor.hostlist", this.hostList.join(","));
             Components.utils.reportError("Configure dialog saved. new host list: " + params.out.hostList);
         } else {

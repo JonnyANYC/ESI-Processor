@@ -17,7 +17,7 @@
     <dialogheader title="On which sites should Firefox process ESI tags?"/>
 
     <checkbox id="esi_processor-configure-enabled" label="Enable ESI Processor" />
-    <label value="Enter one site per line:"/>
+    <label value="Enter one site per line (max 25):"/>
     <textbox id="esi_processor-configure-hostList" multiline="true" 
         rows="5" cols="40"
         label="Site list"
