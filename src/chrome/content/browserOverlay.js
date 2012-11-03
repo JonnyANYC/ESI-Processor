@@ -83,26 +83,27 @@ function EsiBrowserOverlay() {
 
                     let esiContentElement;
                     //FIXME: create an extension config param for security level.
-                    let esiConfigSecurityLevel = "paranoid";
-                    if (esiConfigSecurityLevel == "open")
+                    let esiConfigSecurityLevel = "unprivelidged";
+                    if (esiConfigSecurityLevel == "self_contained_only")
                     {
                         // FIXME: find something that will execute code, but only unprivelidged.
-                    } else if (esiConfigSecurityLevel == "self_contained_only") {
                         // FIXME: find a way to render iframes or similar as an inline block.
+                    } else if (esiConfigSecurityLevel == "unprivelidged") {
                         // FIXME: confirm that any code in an inline like this is not privelidged.
-                        esiContentElement = freshDoc.createElement("iframe");
-                        esiContentElement.style.position = "static";
-                        esiContentElement.style.display = "inline";
-                        esiContentElement.className = "esi_processor";
-                        esiContentElement.id = "esi_processor-" + j;
-                        //esiContentElement.setAttribute("type", "content");
+                        esiContentElement = freshDoc.createElement("script");
+                        // TODO: Consider embedding a div as a wrapper of the content, and label that div instead of the script tag.
+                        esiContentElement.className = "esi_processor-injected";
+                        esiContentElement.id = "esi_processor-injected-" + j;
+
+                        esiContent = esiContent.replace(/(\r\n)|(\n)/g,'\\n').replace(/\"/g,'\\"');
+                        esiContent = 'document.write("' + esiContent + '");';
                         esiContentElement.setAttribute("src", "data:text/html," + encodeURIComponent(esiContent));
                     } else {
                         esiContentElement = freshDoc.createElement("div");
                         esiContentElement.style.position = "static";
                         esiContentElement.style.display = "inline";
-                        esiContentElement.className = "esi_processor";
-                        esiContentElement.id = "esi_processor-" + j;
+                        esiContentElement.className = "esi_processor-injected";
+                        esiContentElement.id = "esi_processor-injected-" + j;
                         esiContentElement.innerHTML = esiContent;
                     }                        
 
