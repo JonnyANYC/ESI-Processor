@@ -244,6 +244,7 @@ function EsiBrowserOverlay() {
 };
 
 
+Components.utils.reportError('overlay script run.');
 var esiBrowserOverlay;
 
 esiBrowserOverlayPageLoadHandler = function( event ) {
