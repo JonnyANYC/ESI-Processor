@@ -1,6 +1,64 @@
-function EsiBrowserOverlay() {
+// Helper functions, from Firebug
+if (typeof Cc == "undefined") {
+    var Cc = Components.classes;
+    var Ci = Components.interfaces;
+};
+if (typeof CCIN == "undefined") {
+    function CCIN(cName, ifaceName){
+        return Cc[cName].createInstance(Ci[ifaceName]);
+    }
+};
 
-    this.onPageLoad = function(event) {
+function EsiBrowserOverlay() {
+    this.receivedData = [];
+};
+
+EsiBrowserOverlay.prototype = {
+    originalListener: null,
+    receivedData: null,   // array for incoming data.
+
+    onStartRequest: function(request, context) {
+        this.receivedData = [];
+        this.originalListener.onStartRequest(request, context);
+    },
+
+    onDataAvailable: function(request, context, inputStream, offset, count) {
+        var binaryInputStream = CCIN("@mozilla.org/binaryinputstream;1", "nsIBinaryInputStream");
+        var storageStream = CCIN("@mozilla.org/storagestream;1", "nsIStorageStream");
+        binaryInputStream.setInputStream(inputStream);
+        storageStream.init(8192, count, null);
+        
+        var binaryOutputStream = CCIN("@mozilla.org/binaryoutputstream;1",
+                "nsIBinaryOutputStream");
+           
+        binaryOutputStream.setOutputStream(storageStream.getOutputStream(0));
+
+        // Copy received data as they come.
+        var data = binaryInputStream.readBytes(count);
+        //var data = inputStream.readBytes(count);
+        
+        this.receivedData.push(data);
+
+        binaryOutputStream.writeBytes(data, count);
+        this.originalListener.onDataAvailable(request, context,storageStream.newInputStream(0), offset, count);
+    },
+
+    onStopRequest: function(request, context, statusCode) {
+
+        var responseSource = this.receivedData.join();
+        this.originalListener.onStopRequest(request, context, statusCode);
+    },
+
+    QueryInterface: function (aIID) {
+        if (aIID.equals(Ci.nsIStreamListener) ||
+            aIID.equals(Ci.nsISupports)) {
+            return this;
+        }
+        throw Components.results.NS_NOINTERFACE;
+    },
+
+
+    onPageLoad: function(event) {
         // TODO: Extract method!!!
         // TODO: Do I need to check for chrome:// url and skip it?
         // TODO: Consider skipping file: requests. Or make it a config option. First test if I can make Ajax requests from a file: page.
@@ -105,7 +163,7 @@ function EsiBrowserOverlay() {
                         esiContentElement.className = "esi_processor-injected";
                         esiContentElement.id = "esi_processor-injected-" + j;
                         esiContentElement.innerHTML = esiContent;
-                    }                        
+                    }
 
                     // TODO: try removing the esi tag entirely and replacing it with the results
                     //esiTags[j].appendChild(esiContentElement);
@@ -126,10 +184,10 @@ function EsiBrowserOverlay() {
 
         // FIXME: remove handler now? or needed for reloads?
         }
-    };
+    },
     
 
-    this.configure = function( event ) {
+    configure: function( event ) {
 
         var params = { 
             inn: {
@@ -153,31 +211,30 @@ function EsiBrowserOverlay() {
         } else {
             Components.utils.reportError("Configure dialog cancelled.");
         }
-    };
+    },
 
-    this.observe = function() {
+    observe_PREFS: function() {
         Components.utils.reportError("reloadPrefs: not implemented yet.");
         // FIXME: set up a listener on the prefs. 
-    };
+        // FIXME: can this coexist with an observe method for the page load? Or is that observe method in a different object?
+        // Would it make sense to move the prefs observer to another object?
+    },
 
-    this.enabledisable = function( event ) {
+    enabledisable: function( event ) {
+        // FIXME: Maybe this should be moved to a different object that handles prefs.
         alert("enabledisable: not implemented yet.");
-    };
+    },
 
-    this.checkForHostNameMismatches = function( esiTags ) {
-        Components.utils.reportError("checkForHostNameMismatches: not implemented yet.");
-    };
+    urlHostMatchPattern: /^http:\/\/([\w\.-]+)/i,
 
-    this.urlHostMatchPattern = /^http:\/\/([\w\.-]+)/i;
-
-    this.extractHostNameFromUrl = function( url ) {
+    extractHostNameFromUrl: function( url ) {
         var urlHostMatch = url.match( this.urlHostMatchPattern );
         return urlHostMatch ? urlHostMatch[1] : null;
-    };
+    },
 
-    this.urlDomainMatchPattern = /^http:\/\/([\w-]\.)+([\w-])/i;
+    urlDomainMatchPattern: /^http:\/\/([\w-]\.)+([\w-])/i,
 
-    this.extractDomainFromUrl = function( url ) {
+    extractDomainFromUrl: function( url ) {
         var urlDomainMatch = url.match( this.urlDomainMatchPattern );
         
         var domain = null;
@@ -189,9 +246,9 @@ function EsiBrowserOverlay() {
             domain = urlDomainMatch[ matchLength-1 ] + urlDomainMatch[ matchLength ] 
         }
         return domain;
-    };
+    },
 
-    this._sanitizeHostList = function( dirtyHostList ) {
+    _sanitizeHostList: function( dirtyHostList ) {
 
         var hostList = new Array();
         // A host entry is allowed if it contains alphanumerics, periods, and dashes.
@@ -209,11 +266,11 @@ function EsiBrowserOverlay() {
         }
 
         return hostList;
-    }
+    },
 
-    this._initialized = false;
+    _initialized: false,
 
-    this._init = function() {
+    _init: function() {
 
         if ( this._initialized )  { 
             Components.utils.reportError('WARNING: already initialized.');
@@ -237,26 +294,49 @@ function EsiBrowserOverlay() {
 
         this._initialized = true;
         Components.utils.reportError("init done. hostlist len: " + this.hostList.length);
-    };
-
-    this._init();
+    },
 
 };
 
+
+// FIXME: call     this._init();
+
+HttpRequestObject = {
+
+    observe: function(request, aTopic, aData){
+        try {
+
+            if (aTopic == "http-on-examine-response") {
+                request.QueryInterface(Components.interfaces.nsIHttpChannel);
+                
+                if (request.originalURI ) { // FIXME check for host match here
+                    var esiBrowserOverlay = new EsiBrowserOverlay();
+                    request.QueryInterface(Components.interfaces.nsITraceableChannel);
+                    esiBrowserOverlay.originalListener = request.setNewListener(esiBrowserOverlay);
+                }
+            } 
+        } catch (e) {
+            Components.utils.reportError("\nhRO error: \n\tMessage: " + e.message + "\n\tFile: " + e.fileName + "  line: " + e.lineNumber + "\n");
+        }
+    },
+    
+    QueryInterface: function(aIID){
+        if (aIID.equals(Components.interfaces.nsIObserver) ||
+        aIID.equals(Components.interfaces.nsISupports)) {
+            return this;
+        }
+        
+        throw Components.results.NS_NOINTERFACE;
+        
+    },
+};
+    
+
+// FIXME: Move to an enable() method. And remove the observer when the extension is disabled.
+var observerService = Components.classes["@mozilla.org/observer-service;1"]
+    .getService(Components.interfaces.nsIObserverService);
+
+observerService.addObserver(HttpRequestObject,
+    "http-on-examine-response", false);
 
 Components.utils.reportError('overlay script run.');
-var esiBrowserOverlay;
-
-esiBrowserOverlayPageLoadHandler = function( event ) {
-
-    if ("undefined" == typeof( esiBrowserOverlay )) {
-        Components.utils.reportError('creating a new ESI overlay object.');
-        esiBrowserOverlay = new EsiBrowserOverlay();
-    };
-    
-    esiBrowserOverlay.onPageLoad( event );
-};
-
-window.addEventListener("load", function () {
-    gBrowser.addEventListener("load", esiBrowserOverlayPageLoadHandler, true);
-}, false);
