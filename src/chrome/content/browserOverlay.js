@@ -10,43 +10,103 @@ if (typeof CCIN == "undefined") {
 };
 
 function EsiBrowserOverlay() {
-    this.receivedData = [];
+    this.requestContext = { 
+        request: null, 
+        context: null,
+        inputStream: null,
+        receivedData: []
+    };
 };
 
 EsiBrowserOverlay.prototype = {
     originalListener: null,
-    receivedData: null,   // array for incoming data.
+    requestContext: null,
+    bypass: null,
+    acceptedMimeTypes: ["beavis"],
 
     onStartRequest: function(request, context) {
-        this.receivedData = [];
-        this.originalListener.onStartRequest(request, context);
+        try {
+            if ( request.contentType 
+                && ( request.contentType.indexOf("text") >= 0 || request.contentType.indexOf("xml") >= 0 || request.contentType.indexOf("html") >= 0 ) 
+                || this.acceptedMimeTypes.indexOf( request.contentType ) >= 0 ) {
+
+                Components.utils.reportError("STARTING request for mime: " + request.contentType + " on URL: "+ request.name);
+                bypass = false;
+                this.requestContext.request = request;
+                this.requestContext.context = context;
+                this.originalListener.onStartRequest(request, context);
+            } else {
+
+                Components.utils.reportError("Skipping request for mime: " + request.contentType + " on URL: "+ request.name);
+                bypass = true;
+                this.requestContext.request = request; //temp
+                this.requestContext.context = context; // temp
+                this.originalListener.onStartRequest(request, context);
+            }
+        } catch (e) {
+            Components.utils.reportError("\nOnStartRequest error on " + request.name +" : \n\tMessage: " + e.message + "\n\tFile: " + e.fileName + "  line: " + e.lineNumber + "\n");
+            throw e;
+        }
     },
 
     onDataAvailable: function(request, context, inputStream, offset, count) {
-        var binaryInputStream = CCIN("@mozilla.org/binaryinputstream;1", "nsIBinaryInputStream");
-        var storageStream = CCIN("@mozilla.org/storagestream;1", "nsIStorageStream");
-        binaryInputStream.setInputStream(inputStream);
-        storageStream.init(8192, count, null);
-        
-        var binaryOutputStream = CCIN("@mozilla.org/binaryoutputstream;1",
-                "nsIBinaryOutputStream");
-           
-        binaryOutputStream.setOutputStream(storageStream.getOutputStream(0));
 
-        // Copy received data as they come.
-        var data = binaryInputStream.readBytes(count);
-        //var data = inputStream.readBytes(count);
-        
-        this.receivedData.push(data);
+        try {
 
-        binaryOutputStream.writeBytes(data, count);
-        this.originalListener.onDataAvailable(request, context,storageStream.newInputStream(0), offset, count);
+            // FIXME : just passthru if bypass is true.
+
+            if (this.requestContext.request != request)  Components.utils.reportError("request objs don't match");
+            if (this.requestContext.context != context)  Components.utils.reportError("context objs don't match");
+            
+            if (this.requestContext.inputStream && this.requestContext.inputStream != inputStream)  
+                Components.utils.reportError("inputStream objs don't match");
+
+            this.requestContext.inputStream = inputStream;
+
+            var binaryInputStream = CCIN("@mozilla.org/binaryinputstream;1", "nsIBinaryInputStream");
+            binaryInputStream.setInputStream(inputStream);
+
+            // Copy received data as they come.
+            var data = binaryInputStream.readBytes(count);
+            //var data = inputStream.readBytes(count);
+            
+            this.requestContext.receivedData.push(data);
+        } catch (e) {
+            Components.utils.reportError("\nOnDataAvailable error on " + request.name +": \n\tMessage: " + e.message + "\n\tFile: " + e.fileName + "  line: " + e.lineNumber + "\n");
+            throw e;
+        }
     },
 
     onStopRequest: function(request, context, statusCode) {
+        try {
 
-        var responseSource = this.receivedData.join();
-        this.originalListener.onStopRequest(request, context, statusCode);
+            // FIXME : just passthru if bypass is true.
+
+            var responseSource = this.requestContext.receivedData.join();
+
+            var storageStream = CCIN("@mozilla.org/storagestream;1", "nsIStorageStream");
+            storageStream.init(8192, responseSource.length *3, null);
+
+            var binaryOutputStream = CCIN("@mozilla.org/binaryoutputstream;1",
+                    "nsIBinaryOutputStream");
+
+            binaryOutputStream.setOutputStream(storageStream.getOutputStream(0));
+            binaryOutputStream.writeBytes(responseSource, responseSource.length);
+            this.originalListener.onDataAvailable(
+                this.requestContext.request, 
+                this.requestContext.context,
+                storageStream.newInputStream(0), 
+                0, 
+                storageStream.length);
+
+            this.originalListener.onStopRequest(
+                this.requestContext.request, 
+                this.requestContext.context, 
+                statusCode);
+        } catch (e) {
+            Components.utils.reportError("\nOnStopRequest error on " + request.name +": \n\tMessage: " + e.message + "\n\tFile: " + e.fileName + "  line: " + e.lineNumber + "\n");
+            throw e;
+        }
     },
 
     QueryInterface: function (aIID) {
@@ -309,10 +369,14 @@ HttpRequestObject = {
             if (aTopic == "http-on-examine-response") {
                 request.QueryInterface(Components.interfaces.nsIHttpChannel);
                 
-                if (request.originalURI ) { // FIXME check for host match here
+                if (request.URI && request.URI.scheme &&
+                    (request.URI.scheme == "http" || request.URI.scheme == "file")
+                 ) { // FIXME check for host match here
                     var esiBrowserOverlay = new EsiBrowserOverlay();
                     request.QueryInterface(Components.interfaces.nsITraceableChannel);
                     esiBrowserOverlay.originalListener = request.setNewListener(esiBrowserOverlay);
+                } else { 
+                    Components.utils.reportError("No match on URL: " + request.URI);
                 }
             } 
         } catch (e) {
