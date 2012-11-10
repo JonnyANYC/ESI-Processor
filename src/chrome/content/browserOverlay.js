@@ -39,8 +39,6 @@ EsiBrowserOverlay.prototype = {
 
                 Components.utils.reportError("Skipping request for mime: " + request.contentType + " on URL: "+ request.name);
                 bypass = true;
-                this.requestContext.request = request; //temp
-                this.requestContext.context = context; // temp
                 this.originalListener.onStartRequest(request, context);
             }
         } catch (e) {
@@ -53,7 +51,10 @@ EsiBrowserOverlay.prototype = {
 
         try {
 
-            // FIXME : just passthru if bypass is true.
+            if ( bypass ) {
+                this.originalListener.onDataAvailable( request, context, inputStream, offset, count );
+                return;
+            }
 
             if (this.requestContext.request != request)  Components.utils.reportError("request objs don't match");
             if (this.requestContext.context != context)  Components.utils.reportError("context objs don't match");
@@ -80,9 +81,12 @@ EsiBrowserOverlay.prototype = {
     onStopRequest: function(request, context, statusCode) {
         try {
 
-            // FIXME : just passthru if bypass is true.
+            if ( bypass ) {
+                this.originalListener.onStopRequest( request, context, statusCode );
+                return;
+            }
 
-            var responseSource = this.requestContext.receivedData.join();
+            var responseSource = this.requestContext.receivedData.join('');
 
             var storageStream = CCIN("@mozilla.org/storagestream;1", "nsIStorageStream");
             storageStream.init(8192, responseSource.length *3, null);
@@ -368,15 +372,17 @@ HttpRequestObject = {
 
             if (aTopic == "http-on-examine-response") {
                 request.QueryInterface(Components.interfaces.nsIHttpChannel);
-                
-                if (request.URI && request.URI.scheme &&
-                    (request.URI.scheme == "http" || request.URI.scheme == "file")
-                 ) { // FIXME check for host match here
+
+                // FIXME check for host match here
+                // FIXME need to identify cached pages ([xpconnect wrapped nsIURI]) and process them too
+                if (request.URI && request.URI.scheme && request.originalURI   
+                    && (request.URI.scheme == "http" || request.URI.scheme == "file")
+                    && (request.originalURI.path != "/favicon.ico") ) { 
                     var esiBrowserOverlay = new EsiBrowserOverlay();
                     request.QueryInterface(Components.interfaces.nsITraceableChannel);
                     esiBrowserOverlay.originalListener = request.setNewListener(esiBrowserOverlay);
                 } else { 
-                    Components.utils.reportError("No match on URL: " + request.URI);
+                    Components.utils.reportError("No match on URL: " + request.URI + ", originalURI " + request.originalURI);
                 }
             } 
         } catch (e) {
