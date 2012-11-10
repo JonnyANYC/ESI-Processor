@@ -16,6 +16,8 @@ function EsiBrowserOverlay() {
         inputStream: null,
         receivedData: []
     };
+
+    this._init();
 };
 
 EsiBrowserOverlay.prototype = {
@@ -87,6 +89,7 @@ EsiBrowserOverlay.prototype = {
             }
 
             var responseSource = this.requestContext.receivedData.join('');
+            responseSource = this.processEsiBlocks(responseSource);
 
             var storageStream = CCIN("@mozilla.org/storagestream;1", "nsIStorageStream");
             storageStream.init(8192, responseSource.length *3, null);
@@ -122,132 +125,78 @@ EsiBrowserOverlay.prototype = {
     },
 
 
-    onPageLoad: function(event) {
-        // TODO: Extract method!!!
-        // TODO: Do I need to check for chrome:// url and skip it?
-        // TODO: Consider skipping file: requests. Or make it a config option. First test if I can make Ajax requests from a file: page.
-        // TODO: check for all other legal protocols supported by Firefox.
-        if (event.originalTarget instanceof HTMLDocument &&
-            event.originalTarget.defaultView.location.protocol != 'about:' && 
-            event.originalTarget.defaultView.location.protocol != 'chrome:' )
-        {
-            Components.utils.reportError("in pageLoad Hdlr. hostlist: " + this.hostList + ". url proto is " + event.originalTarget.defaultView.location.protocol + ". called: " + this.numTimesCalled++);
-
-            var freshDoc = event.originalTarget;
-            
+    isHostNameMatch: function( hostName ) {
             var hostNameMatch = false;
-            var requestHostNameLowerCase = freshDoc.domain.toLocaleLowerCase();
+            var hostNameLowerCase = hostName.toLocaleLowerCase();
 
             for ( var hl = 0; hl < this.hostList.length; hl++ )
             {
-                if ( requestHostNameLowerCase.indexOf( this.hostList[hl] ) != -1 )
+                if ( hostNameLowerCase.indexOf( this.hostList[hl] ) != -1 )
                 {
                     hostNameMatch = true;
                     break;
                 }
             }
 
-            if (!hostNameMatch)  { Components.utils.reportError("didn't match host."); return; }
+            Components.utils.reportError(" host match: " + hostNameMatch);
 
-            Components.utils.reportError("matched host: " + requestHostNameLowerCase);
+            return hostNameMatch;
+    }, 
 
-            // TODO: Remove if not needed.
-            var insertedEsiContent = false;
 
-            var esiTags = freshDoc.getElementsByTagName("esi:include");
+    esiTagPattern: /\<esi:include src="([\w\d\.:\/\-,]+)"\s?\/\>/ig,
 
-            // FIXME: Remove this if it won't be used.
-            // if ( esiTags.length )  this.checkForHostNameMismatches( esiTags );
+    processEsiBlocks: function(page) {
+        // TODO: Extract method!!!
+        Components.utils.reportError("in pageLoad Hdlr. hostlist: " + this.hostList + ". called: " + this.numTimesCalled++);
 
-            var esiRequests = new Array(esiTags.length);
-            for (var i = esiTags.length -1; i >= 0; i--)
+        // TODO: Remove if not needed.
+        var insertedEsiContent = false;
+
+        var esiTags = Array();  // FIXME not used?
+        var aTag;
+        while ( aTag = this.esiTagPattern.exec(page) ) { 
+
+            Components.utils.reportError("Found: " + aTag);
+
+            // FIXME: Fix the DOM and then bail if there's no src attribute.
+            // TODO: Try using netscape.security.PrivilegeManager.enablePrivilege("UniversalBrowserRead")
+            // This should work for FF v3 and 4.
+            // TODO: Find out if esi src attributes can be relative URLs.
+
+            var esiRequest = new XMLHttpRequest();
+            
+            // FIXME: Check the usefulness of this feature, and then cast vendorSub to a float.
+            /*
+            if ( true || window.navigator.vendorSub >= 3.5 )
             {
-                // FIXME: Fix the DOM and then bail if there's no src attribute.
-                
-                // TODO: Try using netscape.security.PrivilegeManager.enablePrivilege("UniversalBrowserRead")
-                // This should work for FF v3 and 4.
-                
-                // TODO: Find out if esi src attributes can be relative URLs.
-
-                // FIXME: Remove this if it won't be used.
-                // var esiHostName = this.extractHostNameFromUrl( esiTags[i].getAttribute('src') );
-
-                esiRequests[i] = new XMLHttpRequest();
-                
-                // FIXME: Check the usefulness of this feature, and then cast vendorSub to a float.
-                if ( true || window.navigator.vendorSub >= 3.5 )
-                {
-                    // Check if req.onerror = onError works for FF v3.0 and 3.1, or maybe the below works w/ FF3.1
-                    esiRequests[i].addEventListener("error", function( event ) {
-                        Components.utils.reportError("XHR error! status, errortext: " +
-                            event.target.status + ", " + event.target.errorText ); },
-                        false);
-                }
-
-                esiRequests[i].open('GET', esiTags[i].getAttribute('src'), true);
-                
-                // TODO: If the ESI spec can't send cookies, then try to disable them in the request.
-                // Use req.sendCredentials = false if it works, or maybe a channel flag.
-                // TODO: Consider adding a user option to enable browser caching of ESI content.
-                esiRequests[i].channel.loadFlags |= Components.interfaces.nsIRequest.LOAD_BYPASS_CACHE;
-
-                let j = i;
-
-                esiRequests[i].onreadystatechange = function( event ) {
-
-                    if (this.readyState != 4)  { Components.utils.reportError("XHR readystate: " + this.readyState); return; }
-
-                    let esiContent = this.responseText;
-                    if(this.status != 200)
-                    {
-                        esiContent = 'ESI error for URL ' + esiTags[j].getAttribute('src') + ': ' + this.statusText;
-                    }
-
-                    let esiContentElement;
-                    //FIXME: create an extension config param for security level.
-                    let esiConfigSecurityLevel = "unprivelidged";
-                    if (esiConfigSecurityLevel == "self_contained_only")
-                    {
-                        // FIXME: find something that will execute code, but only unprivelidged.
-                        // FIXME: find a way to render iframes or similar as an inline block.
-                    } else if (esiConfigSecurityLevel == "unprivelidged") {
-                        // FIXME: confirm that any code in an inline like this is not privelidged.
-                        esiContentElement = freshDoc.createElement("script");
-                        // TODO: Consider embedding a div as a wrapper of the content, and label that div instead of the script tag.
-                        esiContentElement.className = "esi_processor-injected";
-                        esiContentElement.id = "esi_processor-injected-" + j;
-
-                        esiContent = esiContent.replace(/(\r\n)|(\n)/g,'\\n').replace(/\"/g,'\\"');
-                        esiContent = 'document.write("' + esiContent + '");';
-                        esiContentElement.setAttribute("src", "data:text/html," + encodeURIComponent(esiContent));
-                    } else {
-                        esiContentElement = freshDoc.createElement("div");
-                        esiContentElement.style.position = "static";
-                        esiContentElement.style.display = "inline";
-                        esiContentElement.className = "esi_processor-injected";
-                        esiContentElement.id = "esi_processor-injected-" + j;
-                        esiContentElement.innerHTML = esiContent;
-                    }
-
-                    // TODO: try removing the esi tag entirely and replacing it with the results
-                    //esiTags[j].appendChild(esiContentElement);
-                    esiTags[j].parentNode.insertBefore(esiContentElement, esiTags[j]);                    
-                    insertedEsiContent = true;
-
-                    while (esiTags[j].hasChildNodes())
-                    {
-                        esiTags[j].parentNode.insertBefore(esiTags[j].childNodes[0], esiTags[j]);
-                    }
-
-                    esiTags[j].parentNode.removeChild(esiTags[j]);
-                }
-                esiRequests[i].send(null);
+                // Check if req.onerror = onError works for FF v3.0 and 3.1, or maybe the below works w/ FF3.1
+                esiRequests[i].addEventListener("error", function( event ) {
+                    Components.utils.reportError("XHR error! status, errortext: " +
+                        event.target.status + ", " + event.target.errorText ); },
+                    false);
             }
+            */
 
-            // Components.utils.reportError("Done!");
+            esiRequest.open('GET', aTag[1], false);
+            esiRequest.channel.loadFlags |= Components.interfaces.nsIRequest.LOAD_BYPASS_CACHE;
+            esiRequest.send();
 
-        // FIXME: remove handler now? or needed for reloads?
+            // TODO: If the ESI spec can't send cookies, then try to disable them in the request.
+            // Use req.sendCredentials = false if it works, or maybe a channel flag.
+            // TODO: Consider adding a user option to enable browser caching of ESI content.
+
+            // FIXME: create an extension config param for security level.
+            // FIXME: extract method!
+            // FIXME: no way to confirm the old tag was removed. split up the page at the sstart into
+            //  esi tags and the remaining chunks, fire off async requests for each esi tag, and then assemble when done.
+            page = page.replace(aTag[0], esiRequest.responseText);
+
+            insertedEsiContent = true;
         }
+        return page;
+
+        Components.utils.reportError("Done!");
     },
     
 
@@ -332,7 +281,7 @@ EsiBrowserOverlay.prototype = {
         return hostList;
     },
 
-    _initialized: false,
+    _initialized: null,
 
     _init: function() {
 
@@ -363,8 +312,6 @@ EsiBrowserOverlay.prototype = {
 };
 
 
-// FIXME: call     this._init();
-
 HttpRequestObject = {
 
     observe: function(request, aTopic, aData){
@@ -375,6 +322,9 @@ HttpRequestObject = {
 
                 // FIXME check for host match here
                 // FIXME need to identify cached pages ([xpconnect wrapped nsIURI]) and process them too
+                // TODO: Do I need to check for chrome:// url and skip it?
+                // TODO: Consider skipping file: requests. Or make it a config option. First test if I can make Ajax requests from a file: page.
+                // TODO: check for all other legal protocols supported by Firefox.
                 if (request.URI && request.URI.scheme && request.originalURI   
                     && (request.URI.scheme == "http" || request.URI.scheme == "file")
                     && (request.originalURI.path != "/favicon.ico") ) { 
