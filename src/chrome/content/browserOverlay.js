@@ -9,7 +9,7 @@ if (typeof CCIN == "undefined") {
     }
 };
 
-function EsiProcessorDecorator() {
+function EsiProcessorStreamDecorator() {
     this.requestContext = { 
         request: null, 
         context: null,
@@ -20,7 +20,7 @@ function EsiProcessorDecorator() {
     this._init();
 };
 
-EsiProcessorDecorator.prototype = {
+EsiProcessorStreamDecorator.prototype = {
     originalListener: null,
     requestContext: null,
     bypass: null,
@@ -316,9 +316,9 @@ EsiProcessorObserver = {
                 if (request.URI && request.URI.scheme && request.originalURI   
                     && (request.URI.scheme == "http" || request.URI.scheme == "file")
                     && (request.originalURI.path != "/favicon.ico") ) { 
-                    var esiProcessorDecorator = new EsiProcessorDecorator();
+                    var esiProcessorStreamDecorator = new EsiProcessorStreamDecorator();
                     request.QueryInterface(Components.interfaces.nsITraceableChannel);
-                    esiProcessorDecorator.originalListener = request.setNewListener(esiProcessorDecorator);
+                    esiProcessorStreamDecorator.originalListener = request.setNewListener(esiProcessorStreamDecorator);
                 } else { 
                     Components.utils.reportError("No match on URL: " + request.URI + ", originalURI " + request.originalURI);
                 }
