@@ -16,8 +16,6 @@ function EsiProcessorStreamDecorator() {
         inputStream: null,
         receivedData: []
     };
-
-    this._init();
 };
 
 EsiProcessorStreamDecorator.prototype = {
@@ -125,32 +123,10 @@ EsiProcessorStreamDecorator.prototype = {
     },
 
 
-    isHostNameMatch: function( hostName ) {
-            var hostNameMatch = false;
-            var hostNameLowerCase = hostName.toLocaleLowerCase();
-
-            for ( var hl = 0; hl < this.hostList.length; hl++ )
-            {
-                if ( hostNameLowerCase.indexOf( this.hostList[hl] ) != -1 )
-                {
-                    hostNameMatch = true;
-                    break;
-                }
-            }
-
-            Components.utils.reportError(" host match: " + hostNameMatch);
-
-            return hostNameMatch;
-    }, 
-
-
     esiTagPattern: /\<esi:include src="([\w\d\.:\/\-,]+)"\s?\/\>/ig,
 
     processEsiBlocks: function(page) {
         // TODO: Extract method!!!
-        Components.utils.reportError("in pageLoad Hdlr. hostlist: " + this.hostList + ". called: " + this.numTimesCalled++);
-
-        // TODO: Remove if not needed.
         var insertedEsiContent = false;
 
         var esiTags = Array();  // FIXME not used?
@@ -200,103 +176,6 @@ EsiProcessorStreamDecorator.prototype = {
     },
     
 
-    configure: function( event ) {
-
-        var params = { 
-            inn: {
-                enabled: true,
-                hostList: this.hostList
-            }, 
-            out: null
-        };
-
-        window.openDialog(  "chrome://esi_processor/content/configure.xul", 
-                            "",
-                            "chrome, dialog, modal, resizable=yes", 
-                            params ).focus();
-
-        if (params.out) {
-            // FIXME: Implement an enable/disable feature and let users toggle it here.
-            // FIXME: When disabled, also consider disabling the listener on the hostlist pref, and any other shutdown / sleep actions.
-            this.hostList = this._sanitizeHostList( params.out.hostList.split("\n", 25) );
-            Application.prefs.setValue("extensions.esi_processor.hostlist", this.hostList.join(","));
-            Components.utils.reportError("Configure dialog saved. new host list: " + params.out.hostList);
-        } else {
-            Components.utils.reportError("Configure dialog cancelled.");
-        }
-    },
-
-    urlHostMatchPattern: /^http:\/\/([\w\.-]+)/i,
-
-    extractHostNameFromUrl: function( url ) {
-        var urlHostMatch = url.match( this.urlHostMatchPattern );
-        return urlHostMatch ? urlHostMatch[1] : null;
-    },
-
-    urlDomainMatchPattern: /^http:\/\/([\w-]\.)+([\w-])/i,
-
-    extractDomainFromUrl: function( url ) {
-        var urlDomainMatch = url.match( this.urlDomainMatchPattern );
-        
-        var domain = null;
-        
-        var matchLength = urlDomainMatch.length;
-        
-        if ( matchLength )
-        {
-            domain = urlDomainMatch[ matchLength-1 ] + urlDomainMatch[ matchLength ] 
-        }
-        return domain;
-    },
-
-    _sanitizeHostList: function( dirtyHostList ) {
-
-        var hostList = new Array();
-        // A host entry is allowed if it contains alphanumerics, periods, and dashes.
-        // FIXME: Reject host lists that are dangerously short, such as e.com, etc.
-        // FIXME: Update the pattern to ignore leading and trailing spaces. AFAIK, JS doesn't have a trim() method.
-        // FIXME: If possible, reject host entries that include an underscore, which is included in \w.
-        var allowedHostPattern = /^[\w-]*\.*[\w-]+\.[\w-]+$/;
-
-        for ( var hl = 0; hl < dirtyHostList.length; hl++)
-        {
-            if ( dirtyHostList[hl] == null || dirtyHostList[hl].length == 0  )  continue;
-            if ( dirtyHostList[hl].toLocaleLowerCase() == 'localhost' || 
-                 allowedHostPattern.test( dirtyHostList[hl] ) )
-                { hostList.push( dirtyHostList[hl].toLocaleLowerCase() );  }
-        }
-
-        return hostList;
-    },
-
-    _initialized: null,
-
-    _init: function() {
-
-        if ( this._initialized )  { 
-            Components.utils.reportError('WARNING: already initialized.');
-            return;
-        }
-
-        this.hostList = null;
-        this.numTimesCalled = 0;
-
-
-        var hostListPref = Application.prefs.getValue("extensions.esi_processor.hostlist", null);        
-        if ( hostListPref != null && hostListPref.length > 0 )
-        {
-            this.hostList = this._sanitizeHostList( hostListPref.split(",", 25) );
-        } else
-        {
-            this.hostList = new Array(0);
-        }
-
-        // FIXME: set up a listener on the prefs.
-
-        this._initialized = true;
-        Components.utils.reportError("init done. hostlist len: " + this.hostList.length);
-    },
-
 };
 
 
@@ -315,7 +194,8 @@ EsiProcessorObserver = {
                 // TODO: check for all other legal protocols supported by Firefox.
                 if (request.URI && request.URI.scheme && request.originalURI   
                     && (request.URI.scheme == "http" || request.URI.scheme == "file")
-                    && (request.originalURI.path != "/favicon.ico") ) { 
+                    && (request.originalURI.path != "/favicon.ico") 
+                    && this.isHostNameMatch( request.URI.host ) ) { 
                     var esiProcessorStreamDecorator = new EsiProcessorStreamDecorator();
                     request.QueryInterface(Components.interfaces.nsITraceableChannel);
                     esiProcessorStreamDecorator.originalListener = request.setNewListener(esiProcessorStreamDecorator);
@@ -347,12 +227,127 @@ EsiProcessorObserver = {
 
     enabledisable: function( event ) {
         // FIXME: Maybe this should be moved to a different object that handles prefs.
-        alert("enabledisable: not implemented yet.");
+        // TODO: initialize just once when enabled. 
+        this._init();
         // observerService.removeObserver(EsiProcessorObserver, "http-on-examine-response");
     },
 
+    isHostNameMatch: function( hostName ) {
+        var hostNameLowerCase = hostName.toLocaleLowerCase();
+
+        for ( var hl = 0; hl < this.hostList.length; hl++ )
+        {
+            if ( hostNameLowerCase.indexOf( this.hostList[hl] ) != -1 )
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }, 
+
+
+    configure: function( event ) {
+
+        var params = { 
+            inn: {
+                enabled: true,
+                hostList: this.hostList
+            }, 
+            out: null
+        };
+
+        window.openDialog(  "chrome://esi_processor/content/configure.xul", 
+                            "",
+                            "chrome, dialog, modal, resizable=yes", 
+                            params ).focus();
+
+        if (params.out) {
+            // FIXME: Implement an enable/disable feature and let users toggle it here.
+            // FIXME: When disabled, also consider disabling the listener on the hostlist pref, and any other shutdown / sleep actions.
+            this.hostList = this._sanitizeHostList( params.out.hostList.split("\n", 25) );
+            Application.prefs.setValue("extensions.esi_processor.hostlist", this.hostList.join(","));
+            Components.utils.reportError("Configure dialog saved. new host list: " + params.out.hostList);
+        } else {
+            Components.utils.reportError("Configure dialog cancelled.");
+        }
+    },
+
+
+    urlHostMatchPattern: /^http:\/\/([\w\.-]+)/i,
+
+    extractHostNameFromUrl: function( url ) {
+        var urlHostMatch = url.match( this.urlHostMatchPattern );
+        return urlHostMatch ? urlHostMatch[1] : null;
+    },
+
+    urlDomainMatchPattern: /^http:\/\/([\w-]\.)+([\w-])/i,
+
+    extractDomainFromUrl: function( url ) {
+        var urlDomainMatch = url.match( this.urlDomainMatchPattern );
+        
+        var domain = null;
+        
+        var matchLength = urlDomainMatch.length;
+        
+        if ( matchLength )
+        {
+            domain = urlDomainMatch[ matchLength-1 ] + urlDomainMatch[ matchLength ] 
+        }
+        return domain;
+    },
+
+
+    _sanitizeHostList: function( dirtyHostList ) {
+
+        var hostList = new Array();
+        // A host entry is allowed if it contains alphanumerics, periods, and dashes.
+        // FIXME: Reject host lists that are dangerously short, such as e.com, etc.
+        // FIXME: Update the pattern to ignore leading and trailing spaces. AFAIK, JS doesn't have a trim() method.
+        // FIXME: If possible, reject host entries that include an underscore, which is included in \w.
+        var allowedHostPattern = /^[\w-]*\.*[\w-]+\.[\w-]+$/;
+
+        for ( var hl = 0; hl < dirtyHostList.length; hl++)
+        {
+            if ( dirtyHostList[hl] == null || dirtyHostList[hl].length == 0  )  continue;
+            if ( dirtyHostList[hl].toLocaleLowerCase() == 'localhost' || 
+                 allowedHostPattern.test( dirtyHostList[hl] ) )
+                { hostList.push( dirtyHostList[hl].toLocaleLowerCase() );  }
+        }
+
+        return hostList;
+    },
+
+
+    _init: function() {
+
+        if ( this._initialized )  { 
+            // TODO: change to a warning.
+            Components.utils.reportError('WARNING: already initialized.');
+            return;
+        }
+
+        this.hostList = null;
+        this.numTimesCalled = 0;
+
+        var hostListPref = Application.prefs.getValue("extensions.esi_processor.hostlist", null);        
+        if ( hostListPref != null && hostListPref.length > 0 )
+        {
+            this.hostList = this._sanitizeHostList( hostListPref.split(",", 25) );
+        } else
+        {
+            this.hostList = new Array(0);
+        }
+
+        // FIXME: set up a listener on the prefs.
+
+        this._initialized = true;
+        Components.utils.reportError("init done. hostlist len: " + this.hostList.length);
+    },
+
 };
-    
+
+EsiProcessorObserver.enabledisable();
 
 // FIXME: Move to an enable() method. And remove the observer when the extension is disabled.
 var observerService = Components.classes["@mozilla.org/observer-service;1"]
