@@ -1,4 +1,4 @@
-// Helper functions, from Firebug
+// Helper functions
 if (typeof Cc == "undefined") {
     var Cc = Components.classes;
     var Ci = Components.interfaces;
@@ -9,7 +9,7 @@ if (typeof CCIN == "undefined") {
     }
 };
 
-function EsiBrowserOverlay() {
+function EsiProcessorDecorator() {
     this.requestContext = { 
         request: null, 
         context: null,
@@ -20,7 +20,7 @@ function EsiBrowserOverlay() {
     this._init();
 };
 
-EsiBrowserOverlay.prototype = {
+EsiProcessorDecorator.prototype = {
     originalListener: null,
     requestContext: null,
     bypass: null,
@@ -226,18 +226,6 @@ EsiBrowserOverlay.prototype = {
         }
     },
 
-    observe_PREFS: function() {
-        Components.utils.reportError("reloadPrefs: not implemented yet.");
-        // FIXME: set up a listener on the prefs. 
-        // FIXME: can this coexist with an observe method for the page load? Or is that observe method in a different object?
-        // Would it make sense to move the prefs observer to another object?
-    },
-
-    enabledisable: function( event ) {
-        // FIXME: Maybe this should be moved to a different object that handles prefs.
-        alert("enabledisable: not implemented yet.");
-    },
-
     urlHostMatchPattern: /^http:\/\/([\w\.-]+)/i,
 
     extractHostNameFromUrl: function( url ) {
@@ -312,7 +300,7 @@ EsiBrowserOverlay.prototype = {
 };
 
 
-HttpRequestObject = {
+EsiProcessorObserver = {
 
     observe: function(request, aTopic, aData){
         try {
@@ -328,15 +316,15 @@ HttpRequestObject = {
                 if (request.URI && request.URI.scheme && request.originalURI   
                     && (request.URI.scheme == "http" || request.URI.scheme == "file")
                     && (request.originalURI.path != "/favicon.ico") ) { 
-                    var esiBrowserOverlay = new EsiBrowserOverlay();
+                    var esiProcessorDecorator = new EsiProcessorDecorator();
                     request.QueryInterface(Components.interfaces.nsITraceableChannel);
-                    esiBrowserOverlay.originalListener = request.setNewListener(esiBrowserOverlay);
+                    esiProcessorDecorator.originalListener = request.setNewListener(esiProcessorDecorator);
                 } else { 
                     Components.utils.reportError("No match on URL: " + request.URI + ", originalURI " + request.originalURI);
                 }
             } 
         } catch (e) {
-            Components.utils.reportError("\nhRO error: \n\tMessage: " + e.message + "\n\tFile: " + e.fileName + "  line: " + e.lineNumber + "\n");
+            Components.utils.reportError("\nEsiProcessorObserver error: \n\tMessage: " + e.message + "\n\tFile: " + e.fileName + "  line: " + e.lineNumber + "\n");
         }
     },
     
@@ -349,6 +337,20 @@ HttpRequestObject = {
         throw Components.results.NS_NOINTERFACE;
         
     },
+
+    observe_PREFS: function() {
+        Components.utils.reportError("reloadPrefs: not implemented yet.");
+        // FIXME: set up a listener on the prefs. 
+        // FIXME: can this coexist with an observe method for the page load? Or is that observe method in a different object?
+        // Would it make sense to move the prefs observer to another object?
+    },
+
+    enabledisable: function( event ) {
+        // FIXME: Maybe this should be moved to a different object that handles prefs.
+        alert("enabledisable: not implemented yet.");
+        // observerService.removeObserver(EsiProcessorObserver, "http-on-examine-response");
+    },
+
 };
     
 
@@ -356,7 +358,7 @@ HttpRequestObject = {
 var observerService = Components.classes["@mozilla.org/observer-service;1"]
     .getService(Components.interfaces.nsIObserverService);
 
-observerService.addObserver(HttpRequestObject,
+observerService.addObserver(EsiProcessorObserver,
     "http-on-examine-response", false);
 
 Components.utils.reportError('overlay script run.');
