@@ -181,26 +181,27 @@ EsiProcessorStreamDecorator.prototype = {
 
 EsiProcessorObserver = {
 
-    observe: function(request, aTopic, aData){
+    observe: function(aSubject, aTopic, aData){
         try {
 
             if (aTopic == "http-on-examine-response") {
-                request.QueryInterface(Components.interfaces.nsIHttpChannel);
 
                 // FIXME check for host match here
                 // FIXME need to identify cached pages ([xpconnect wrapped nsIURI]) and process them too
                 // TODO: Do I need to check for chrome:// url and skip it?
                 // TODO: Consider skipping file: requests. Or make it a config option. First test if I can make Ajax requests from a file: page.
                 // TODO: check for all other legal protocols supported by Firefox.
+
+                var request = aSubject.QueryInterface(Components.interfaces.nsIHttpChannel);
+
                 if (request.URI && request.URI.scheme && request.originalURI   
                     && (request.URI.scheme == "http" || request.URI.scheme == "file")
                     && (request.originalURI.path != "/favicon.ico") 
                     && this.isHostNameMatch( request.URI.host ) ) { 
+
                     var esiProcessorStreamDecorator = new EsiProcessorStreamDecorator();
                     request.QueryInterface(Components.interfaces.nsITraceableChannel);
                     esiProcessorStreamDecorator.originalListener = request.setNewListener(esiProcessorStreamDecorator);
-                } else { 
-                    Components.utils.reportError("No match on URL: " + request.URI + ", originalURI " + request.originalURI);
                 }
             } 
         } catch (e) {
