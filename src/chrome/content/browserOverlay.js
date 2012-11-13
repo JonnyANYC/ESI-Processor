@@ -181,11 +181,11 @@ EsiProcessorStreamDecorator.prototype = {
 
 EsiProcessorObserver = {
 
-    observe: function(aSubject, aTopic, aData){
-        try {
+    observe: function(aSubject, aTopic, aData) {
 
-            if (aTopic == "http-on-examine-response") {
+        if (aTopic == "http-on-examine-response") {
 
+            try {
                 // FIXME check for host match here
                 // FIXME need to identify cached pages ([xpconnect wrapped nsIURI]) and process them too
                 // TODO: Do I need to check for chrome:// url and skip it?
@@ -203,9 +203,19 @@ EsiProcessorObserver = {
                     request.QueryInterface(Components.interfaces.nsITraceableChannel);
                     esiProcessorStreamDecorator.originalListener = request.setNewListener(esiProcessorStreamDecorator);
                 }
-            } 
-        } catch (e) {
-            Components.utils.reportError("\nEsiProcessorObserver error: \n\tMessage: " + e.message + "\n\tFile: " + e.fileName + "  line: " + e.lineNumber + "\n");
+
+            } catch (e) {
+                Components.utils.reportError("\nEsiProcessorObserver error: \n\tMessage: " + e.message + "\n\tFile: " + e.fileName + "  line: " + e.lineNumber + "\n");
+            }
+
+        } else if (aTopic == "nsPref:changed") {
+
+            // FIXME: instantiate the prefs service, then fetch the latest data.
+            // TODO: Should I try to ignore this call if the current object is what triggered the update?
+            Components.utils.reportError("Prefs were updated somewhere.");
+
+        } else {
+            Components.utils.reportError("Received unexpected observer event for: " + aTopic);
         }
     },
     
@@ -350,11 +360,22 @@ EsiProcessorObserver = {
 
 EsiProcessorObserver.enabledisable();
 
-// FIXME: Move to an enable() method. And remove the observer when the extension is disabled.
-var observerService = Components.classes["@mozilla.org/observer-service;1"]
+// main() for the script. Wrap in anon function to avoid name-clobbering or namespacing.
+(function() {
+
+    // FIXME: Move to an enable() method. And remove the observer when the extension is disabled.
+    var observerService = Cc["@mozilla.org/observer-service;1"]
     .getService(Components.interfaces.nsIObserverService);
 
-observerService.addObserver(EsiProcessorObserver,
-    "http-on-examine-response", false);
+    observerService.addObserver(EsiProcessorObserver,
+        "http-on-examine-response", false);
+
+    var prefService = Cc["@mozilla.org/preferences-service;1"]
+        .getService(Ci.nsIPrefService)
+        .getBranch("extensions.esi_processor."); // do we need the branch yet?
+    prefService.QueryInterface(Ci.nsIPrefBranch2);
+    prefService.addObserver("", EsiProcessorObserver, false);
+    prefService.QueryInterface(Ci.nsIPrefBranch);
+})();
 
 Components.utils.reportError('overlay script run.');

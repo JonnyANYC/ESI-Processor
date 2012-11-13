@@ -18,11 +18,11 @@
         <menuitem id="esi_processor-enabledisable"
           label="Enable / Disable"
           accesskey="E"
-          oncommand="esiBrowserOverlay.enabledisable(event);" />
+          oncommand="EsiProcessorObserver.enabledisable(event);" />
         <menuitem id="esi_processor-config"
           label="Options..."
           accesskey="O"
-          oncommand="esiBrowserOverlay.configure(event);" />
+          oncommand="EsiProcessorObserver.configure(event);" />
       </menupopup>
     </menu>
   </menupopup>
@@ -35,11 +35,11 @@
         <menuitem id="esi_processor-enabledisable"
           label="Enable / Disable"
           accesskey="E"
-          oncommand="esiBrowserOverlay.enabledisable(event);" />
+          oncommand="EsiProcessorObserver.enabledisable(event);" />
         <menuitem id="esi_processor-config"
           label="Options..."
           accesskey="O"
-          oncommand="esiBrowserOverlay.configure(event);" />
+          oncommand="EsiProcessorObserver.configure(event);" />
       </menupopup>
     </menu>
   </vbox>
