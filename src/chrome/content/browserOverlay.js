@@ -229,18 +229,16 @@ EsiProcessorObserver = {
         
     },
 
-    observe_PREFS: function() {
-        Components.utils.reportError("reloadPrefs: not implemented yet.");
-        // FIXME: set up a listener on the prefs. 
-        // FIXME: can this coexist with an observe method for the page load? Or is that observe method in a different object?
-        // Would it make sense to move the prefs observer to another object?
-    },
-
     enabledisable: function( event ) {
         // FIXME: Maybe this should be moved to a different object that handles prefs.
         // TODO: initialize just once when enabled. 
         this._init();
         // observerService.removeObserver(EsiProcessorObserver, "http-on-examine-response");
+    },
+
+    shutdown: function() {
+        // FIXME: Remove any remaining observers on window shutdown.
+        Components.utils.reportError("shutdown: not implemented yet.");
     },
 
     isHostNameMatch: function( hostName ) {
@@ -358,10 +356,10 @@ EsiProcessorObserver = {
 
 };
 
-EsiProcessorObserver.enabledisable();
-
 // main() for the script. Wrap in anon function to avoid name-clobbering or namespacing.
 (function() {
+
+    EsiProcessorObserver.enabledisable();
 
     // FIXME: Move to an enable() method. And remove the observer when the extension is disabled.
     var observerService = Cc["@mozilla.org/observer-service;1"]
@@ -376,6 +374,8 @@ EsiProcessorObserver.enabledisable();
     prefService.QueryInterface(Ci.nsIPrefBranch2);
     prefService.addObserver("", EsiProcessorObserver, false);
     prefService.QueryInterface(Ci.nsIPrefBranch);
+
+    window.addEventListener("unload", function(event) { EsiProcessorObserver.shutdown(); }, false);
 })();
 
 Components.utils.reportError('overlay script run.');
