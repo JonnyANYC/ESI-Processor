@@ -22,7 +22,7 @@ EsiProcessorStreamDecorator.prototype = {
     originalListener: null,
     requestContext: null,
     bypass: null,
-    acceptedMimeTypes: ["beavis"],
+    acceptedMimeTypes: ["beavis"], // FIXME: add as a config param.
 
     onStartRequest: function(request, context) {
         try {
@@ -129,7 +129,6 @@ EsiProcessorStreamDecorator.prototype = {
         // TODO: Extract method!!!
         var insertedEsiContent = false;
 
-        var esiTags = Array();  // FIXME not used?
         var aTag;
         while ( aTag = this.esiTagPattern.exec(page) ) { 
 
@@ -164,22 +163,121 @@ EsiProcessorStreamDecorator.prototype = {
 
             // FIXME: create an extension config param for security level.
             // FIXME: extract method!
-            // FIXME: no way to confirm the old tag was removed. split up the page at the sstart into
+            // FIXME: no way to confirm the old tag was removed, which risks an infinite loop. 
+            // split up the page at the sstart into
             //  esi tags and the remaining chunks, fire off async requests for each esi tag, and then assemble when done.
-            page = page.replace(aTag[0], esiRequest.responseText);
+            var esiContent = '<!-- ESI tag processed by ESI Processor. -->\n';
+            esiContent += '<div class="esi_processor-injected" onmouseover="esi_processor_highlight(this)" onmouseout="esi_processor_unhighlight(this)">';
+            esiContent += esiRequest.responseText;
+            esiContent += '</div>'
+            esiContent += '<!-- End ESI tag. -->';
+
+            page = page.replace(aTag[0], esiContent);
 
             insertedEsiContent = true;
         }
+
+        if (insertedEsiContent) { 
+            page = this.addEsiCss(page);
+        }
+
         return page;
 
-        Components.utils.reportError("Done!");
     },
+
+
+    addEsiCss: function(page) {
+        page += '<style type="text/css"> \n\
+.esi_processor-injected { \n\
+    display: inline-block; \n\
+    padding: 0px; \n\
+    margin: 0px; \n\
+} \n\
+\n\
+.esi_processor_alertbar { \n\
+    position: "fixed";\n\
+    bottom: "0px";\n\
+    font-size: 24px;\n\
+    color: blue;\n\
+    text-align: center;\n\
+}\n\
+</style>\n\
+<script type="text/javascript">\n\
+function esi_processor_highlight(esiBlock) {\n\
+  esiBlock.style.border = "2px dashed blue";\n\
+  esiBlock.style.margin = "-1px";\n\
+}\n\
+\n\
+function esi_processor_unhighlight(esiBlock) {\n\
+  esiBlock.style.border = "none";\n\
+  esiBlock.style.margin = "0px";\n\
+}\n\
+\n\
+(function() {\n\
+\n\
+    var alertbar = document.createElement("div");\n\
+    alertbar.className = "esi_processor_alertbar";\n\
+    alertbar.appendChild(document.createTextNode("ESI blocks were processed on this page."));\n\
+    document.body.appendChild(alertbar);\n\
+\n\
+    function removeAlertbar() {\n\
+        document.body.removeChild(alertbar);\n\
+    };\n\
+\n\
+    window.setTimeout(removeAlertbar, 10000);\n\
+})();\n\
+\n\
+</script>\n\
+';
+        return page;
+    }
     
 
 };
 
 
+
 EsiProcessorObserver = {
+
+    startup: function() {
+
+        if ( this._initialized )  { 
+            // TODO: change to a warning, or accept repeated calls to this as usual process.
+            Components.utils.reportError('WARNING: already initialized.');
+            return;
+        }
+
+        this.hostList = null;
+        this.numTimesCalled = 0;
+
+        var hostListPref = Application.prefs.getValue("extensions.esi_processor.hostlist", null);        
+        if ( hostListPref != null && hostListPref.length > 0 )
+        {
+            this.hostList = this._sanitizeHostList( hostListPref.split(",", 25) );
+        } else
+        {
+            this.hostList = new Array(0);
+        }
+
+        // FIXME: set up a listener on the prefs.
+
+        this._initialized = true;
+        Components.utils.reportError("init done. hostlist len: " + this.hostList.length);
+    },
+
+    shutdown: function() {
+        // FIXME: Remove any remaining observers on window shutdown.
+        Components.utils.reportError("shutdown: not implemented yet.");
+    },
+
+
+    enabledisable: function( event ) {
+        // FIXME: Maybe this should be moved to a different object that handles prefs.
+        // TODO: initialize just once when enabled. 
+        this.startup();
+        // observerService.removeObserver(EsiProcessorObserver, "http-on-examine-response");
+    },
+
 
     observe: function(aSubject, aTopic, aData) {
 
@@ -227,18 +325,6 @@ EsiProcessorObserver = {
         
         throw Components.results.NS_NOINTERFACE;
         
-    },
-
-    enabledisable: function( event ) {
-        // FIXME: Maybe this should be moved to a different object that handles prefs.
-        // TODO: initialize just once when enabled. 
-        this._init();
-        // observerService.removeObserver(EsiProcessorObserver, "http-on-examine-response");
-    },
-
-    shutdown: function() {
-        // FIXME: Remove any remaining observers on window shutdown.
-        Components.utils.reportError("shutdown: not implemented yet.");
     },
 
     isHostNameMatch: function( hostName ) {
@@ -327,32 +413,6 @@ EsiProcessorObserver = {
         return hostList;
     },
 
-
-    _init: function() {
-
-        if ( this._initialized )  { 
-            // TODO: change to a warning.
-            Components.utils.reportError('WARNING: already initialized.');
-            return;
-        }
-
-        this.hostList = null;
-        this.numTimesCalled = 0;
-
-        var hostListPref = Application.prefs.getValue("extensions.esi_processor.hostlist", null);        
-        if ( hostListPref != null && hostListPref.length > 0 )
-        {
-            this.hostList = this._sanitizeHostList( hostListPref.split(",", 25) );
-        } else
-        {
-            this.hostList = new Array(0);
-        }
-
-        // FIXME: set up a listener on the prefs.
-
-        this._initialized = true;
-        Components.utils.reportError("init done. hostlist len: " + this.hostList.length);
-    },
 
 };
 
