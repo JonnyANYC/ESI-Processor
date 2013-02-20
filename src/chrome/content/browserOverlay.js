@@ -90,6 +90,7 @@ EsiProcessorStreamDecorator.prototype = {
             responseSource = this.processEsiBlocks(responseSource);
 
             var storageStream = CCIN("@mozilla.org/storagestream;1", "nsIStorageStream");
+            // FIXME: Why do I run out of space unless I init the strem to 3x length? Multi-byte characters?
             storageStream.init(8192, responseSource.length *3, null);
 
             var binaryOutputStream = CCIN("@mozilla.org/binaryoutputstream;1",
@@ -169,8 +170,8 @@ EsiProcessorStreamDecorator.prototype = {
             var esiContent = '<!-- ESI tag processed by ESI Processor. -->\n';
             esiContent += '<div class="esi_processor-injected" onmouseover="esi_processor_highlight(this)" onmouseout="esi_processor_unhighlight(this)">';
             esiContent += esiRequest.responseText;
-            esiContent += '</div>'
-            esiContent += '<!-- End ESI tag. -->';
+            esiContent += '\n</div>'
+            esiContent += '\n<!-- End ESI tag. -->';
 
             page = page.replace(aTag[0], esiContent);
 
@@ -397,6 +398,7 @@ EsiProcessorObserver = {
 
         var hostList = new Array();
         // A host entry is allowed if it contains alphanumerics, periods, and dashes.
+        // FIXME: This needs to support Unicode host names.
         // FIXME: Reject host lists that are dangerously short, such as e.com, etc.
         // FIXME: Update the pattern to ignore leading and trailing spaces. AFAIK, JS doesn't have a trim() method.
         // FIXME: If possible, reject host entries that include an underscore, which is included in \w.
@@ -437,5 +439,3 @@ EsiProcessorObserver = {
 
     window.addEventListener("unload", function(event) { EsiProcessorObserver.shutdown(); }, false);
 })();
-
-Components.utils.reportError('overlay script run.');
