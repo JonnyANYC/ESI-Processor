@@ -9,13 +9,18 @@ if (typeof CCIN == "undefined") {
     }
 };
 
+
 function EsiProcessorStreamDecorator() {
     this.requestContext = { 
         request: null, 
         context: null,
         inputStream: null,
-        receivedData: []
+        receivedData: [], 
+        finalStatusCode: null
     };
+
+    decoratedPage = [];
+    completedRequests = [];
 };
 
 EsiProcessorStreamDecorator.prototype = {
@@ -23,6 +28,8 @@ EsiProcessorStreamDecorator.prototype = {
     requestContext: null,
     bypass: null,
     acceptedMimeTypes: ["beavis"], // FIXME: add as a config param.
+    decoratedPage: null,
+    completedRequests: null,
 
     onStartRequest: function(request, context) {
         try {
@@ -86,33 +93,46 @@ EsiProcessorStreamDecorator.prototype = {
                 return;
             }
 
+            Components.utils.reportError("\nraw response complete. Final status code: " + statusCode);
+            this.requestContext.finalStatusCode = statusCode;
+
             var responseSource = this.requestContext.receivedData.join('');
-            responseSource = this.processEsiBlocks(responseSource);
+            this.processEsiBlocks(responseSource);
 
-            var storageStream = CCIN("@mozilla.org/storagestream;1", "nsIStorageStream");
-            // FIXME: Why do I run out of space unless I init the strem to 3x length? Multi-byte characters?
-            storageStream.init(8192, responseSource.length *3, null);
-
-            var binaryOutputStream = CCIN("@mozilla.org/binaryoutputstream;1",
-                    "nsIBinaryOutputStream");
-
-            binaryOutputStream.setOutputStream(storageStream.getOutputStream(0));
-            binaryOutputStream.writeBytes(responseSource, responseSource.length);
-            this.originalListener.onDataAvailable(
-                this.requestContext.request, 
-                this.requestContext.context,
-                storageStream.newInputStream(0), 
-                0, 
-                storageStream.length);
-
-            this.originalListener.onStopRequest(
-                this.requestContext.request, 
-                this.requestContext.context, 
-                statusCode);
         } catch (e) {
             Components.utils.reportError("\nOnStopRequest error on " + request.name +": \n\tMessage: " + e.message + "\n\tFile: " + e.fileName + "  line: " + e.lineNumber + "\n");
             throw e;
         }
+    },
+
+    sendDecoratedResponse: function(page) {
+            try {
+                var storageStream = CCIN("@mozilla.org/storagestream;1", "nsIStorageStream");
+                // FIXME: Why do I run out of space unless I init the stream to 3x length? Multi-byte characters?
+                storageStream.init(8192, page.length *3, null);
+
+                var binaryOutputStream = CCIN("@mozilla.org/binaryoutputstream;1",
+                        "nsIBinaryOutputStream");
+
+                binaryOutputStream.setOutputStream(storageStream.getOutputStream(0));
+                binaryOutputStream.writeBytes(page, page.length);
+                this.originalListener.onDataAvailable(
+                    this.requestContext.request, 
+                    this.requestContext.context,
+                    storageStream.newInputStream(0), 
+                    0, 
+                    storageStream.length);
+
+                this.originalListener.onStopRequest(
+                    this.requestContext.request, 
+                    this.requestContext.context, 
+                    this.requestContext.finalStatusCode);
+            } catch (e) {
+                Components.utils.reportError("\nError on final send to client for " + request.name +": \n\tMessage: " + e.message + "\n\tFile: " + e.fileName + "  line: " + e.lineNumber + "\n");
+                throw e;
+            }
+
+
     },
 
     QueryInterface: function (aIID) {
@@ -123,42 +143,40 @@ EsiProcessorStreamDecorator.prototype = {
         throw Components.results.NS_NOINTERFACE;
     },
 
-
-    esiTagPattern: /\<esi:include src="([\w\d\.:\/\-,]+)"[\w\s="]?\/\>/ig,
+    // TODO Needs to be UTF-8 compatible. Also needs to support other supported punctuation in URLs.
+    esiTagPatternAll: /\<esi:include src="([\w\d\.:\/\-,]+)"[\w\s="]?\/\>/ig,
+    esiTagPatternSingle: /\<esi:include src="([\w\d\.:\/\-,]+)"[\w\s="]?\/\>/i,
 
     processEsiBlocks: function(page) {
         // TODO: Extract method!!!
-        var insertedEsiContent = false;
 
-        var esiTags = page.match( this.esiTagPattern );
-        var decoratedPage = new Array( (esiTags.length *2) +1 );
+        var esiTags = page.match( this.esiTagPatternAll );
+
+        if (esiTags == null) { 
+            // No ESI tags found on this page. Bail quickly.
+            this.sendDecoratedResponse(page);
+            return;
+        }
+
+        this.decoratedPage = new Array( (esiTags.length *2) +2 );
+        this.completedRequests = new Array(esiTags.length);
+
         var esiRequests = new Array(esiTags.length);
-        var tag;
+        var esiUrl;
         var cursor = 0;
         var prevCursor = 0;
         for ( var i=0; i < esiTags.length; i++ ) {
             
             cursor = page.indexOf( esiTags[i], cursor );
-            Components.utils.reportError("Found an ESI include at position " + cursor + " with tag " + esiTags[i]);
-            decoratedPage[i*2] = page.substring(prevCursor, cursor);
+            this.decoratedPage[i*2] = page.substring(prevCursor, cursor);
             prevCursor = cursor + esiTags[i].length;
             cursor = prevCursor;
 
-            insertedEsiContent = true;
-
-            // Add a new array entry.
-            // TODO
-            // page = 
-
-            // Extract the ESI source.
-            // TODO ( aTag = this.esiTagPattern.exec(page) ) { 
-
-            // Fire off the request asynchronously.
-            // TODO
-
+            esiUrl = this.esiTagPatternSingle.exec(esiTags[i])[1];
+            Components.utils.reportError("Found an ESI include at position " + cursor + " with tag " + esiTags[i] + " and tag components " + esiUrl);
 
             esiRequests[i] = new XMLHttpRequest();
-            esiRequests[i].open('GET', 'http://localhost/esi1.html', true);
+            esiRequests[i].open('GET', esiUrl, true);
 
             let j = i;
 
@@ -174,6 +192,8 @@ EsiProcessorStreamDecorator.prototype = {
             }
             */
 
+            // TODO This looks messy. Consider alternatives, or at least make the approach more generic.
+            esiRequests[i].EsiProcessorStreamDecorator_handle = this;
             esiRequests[i].onreadystatechange = function( event ) {
 
                 if (this.readyState != 4)  { return; }
@@ -184,10 +204,7 @@ EsiProcessorStreamDecorator.prototype = {
                     esiContent = 'ESI error for request' + j + ': ' + this.statusText;
                 }
 
-                decoratedPage[(j*2)+1] = esiContent;
-
-                Components.utils.reportError("found content: " + esiContent);
-
+                this.EsiProcessorStreamDecorator_handle.handleEsiResponse(j, esiContent);
             }
 
             esiRequests[i].send(null);
@@ -197,47 +214,49 @@ EsiProcessorStreamDecorator.prototype = {
             // TODO: Try using netscape.security.PrivilegeManager.enablePrivilege("UniversalBrowserRead")
             // This should work for FF v3 and 4.
             // TODO: Find out if esi src attributes can be relative URLs.
-            var esiRequest = new XMLHttpRequest();
-            
-            esiRequest.open('GET', aTag[1], false);
             esiRequest.channel.loadFlags |= Components.interfaces.nsIRequest.LOAD_BYPASS_CACHE;
-            esiRequest.send();
 
             // TODO: If the ESI spec can't send cookies, then try to disable them in the request.
             // Use req.sendCredentials = false if it works, or maybe a channel flag.
             // TODO: Consider adding a user option to enable browser caching of ESI content.
 */
             // FIXME: create an extension config param for security level.
-            // FIXME: extract method!
-            // FIXME: no way to confirm the old tag was removed, which risks an infinite loop. 
-            // split up the page at the sstart into
-            //  esi tags and the remaining chunks, fire off async requests for each esi tag, and then assemble when done.
-/*            var esiContent = '<!-- ESI tag processed by ESI Processor. -->\n';
-            esiContent += '<div class="esi_processor-injected" onmouseover="esi_processor_highlight(this)" onmouseout="esi_processor_unhighlight(this)">';
-            esiContent += esiRequest.responseText;
-            esiContent += '\n</div>'
-            esiContent += '\n<!-- End ESI tag. -->';
-*/
-        //    page = page.replace(aTag[0], esiContent);
         }
 
-        if (insertedEsiContent) { 
-            decoratedPage[decoratedPage.length-1] = page.substr(cursor);
-
-            decoratedPage[3] = "found content: <div class='esi1'>\
-ESI 1 or 3.\
-</div>";
-            page = decoratedPage.join();
-            page = this.addEsiCss(page);
-        }
-
-        return page;
-
+        this.decoratedPage[this.decoratedPage.length-2] = page.substr(cursor);
+        this.decoratedPage[this.decoratedPage.length-1] = this.getEsiCss();
     },
 
 
-    addEsiCss: function(page) {
-        page += '<style type="text/css"> \n\
+    handleEsiResponse: function(esiIndex, esiContent) {
+
+        annotatedEsiContent = new Array(4);
+        annotatedEsiContent[0] = '<!-- ESI tag processed by ESI Processor. -->';
+        annotatedEsiContent[1] = '<div class="esi_processor-injected" onmouseover="esi_processor_highlight(this)" onmouseout="esi_processor_unhighlight(this)">';
+        annotatedEsiContent[2] = esiContent;
+        annotatedEsiContent[3] = '</div><!-- End ESI tag. -->';
+
+        this.decoratedPage[(esiIndex*2) +1] = annotatedEsiContent.join('');
+        this.completedRequests[esiIndex] = true;
+
+        // TODO extract method.
+        var esiRequestsComplete = true;
+        for (var i = 0; i < this.completedRequests.length; i++) { 
+
+            if ( !this.completedRequests[i] ) {
+                esiRequestsComplete = false;
+                break;
+            }
+        }
+
+        if (esiRequestsComplete) {
+            this.sendDecoratedResponse( this.decoratedPage.join('') );
+        }
+    },
+
+    getEsiCss: function() {
+        // FIXME Handle this in a browser overlay. The end-user's DOM shouldn't change from what they'd expect.
+        return '<style type="text/css"> \n\
 .esi_processor-injected { \n\
     display: inline-block; \n\
     padding: 0px; \n\
@@ -279,7 +298,6 @@ function esi_processor_unhighlight(esiBlock) {\n\
 \n\
 </script>\n\
 ';
-        return page;
     }
     
 
