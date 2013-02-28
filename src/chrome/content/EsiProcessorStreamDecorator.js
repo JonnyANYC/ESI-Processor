@@ -141,6 +141,11 @@ EsiProcessorStreamDecorator.prototype = {
                         "esi-processor-notification",
                         null, nb.PRIORITY_INFO_MEDIUM, null );
 
+                    setTimeout( function() { 
+                        let nbTimeout = gBrowser.getNotificationBox();
+                        var esiNotification = nbTimeout.getNotificationWithValue("esi-processor-notification");
+                        nbTimeout.removeNotification( esiNotification );
+                    }, 10000);
                 }
 
             } catch (e) {
