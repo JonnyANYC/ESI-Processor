@@ -105,7 +105,7 @@ EsiProcessorStreamDecorator.prototype = {
         }
     },
 
-    sendDecoratedResponse: function(page) {
+    sendDecoratedResponse: function(page, esiBlocks) {
             try {
                 var storageStream = CCIN("@mozilla.org/storagestream;1", "nsIStorageStream");
                 // FIXME: Why do I run out of space unless I init the stream to 3x length? Multi-byte characters?
@@ -127,12 +127,28 @@ EsiProcessorStreamDecorator.prototype = {
                     this.requestContext.request, 
                     this.requestContext.context, 
                     this.requestContext.finalStatusCode);
+
+                binaryOutputStream.close();
+                storageStream.close();
+
+                this.requestContext = null;
+
+                if ( esiBlocks ) {
+
+                    let nb = gBrowser.getNotificationBox();
+                    nb.appendNotification(
+                        esiBlocks + " ESI include(s) were processed on this page.", 
+                        "esi-processor-notification",
+                        null, nb.PRIORITY_INFO_MEDIUM, null );
+
+                }
+
             } catch (e) {
                 Components.utils.reportError("\nError on final send to client for " + request.name +": \n\tMessage: " + e.message + "\n\tFile: " + e.fileName + "  line: " + e.lineNumber + "\n");
+                if (binaryOutputStream) { binaryOutputStream.close(); }
+                if (storageStream) { storageStream.close(); }
                 throw e;
             }
-
-
     },
 
     QueryInterface: function (aIID) {
@@ -153,12 +169,12 @@ EsiProcessorStreamDecorator.prototype = {
         var esiTags = page.match( this.esiTagPatternAll );
 
         if (esiTags == null) { 
-            // No ESI tags found on this page. Bail quickly.
-            this.sendDecoratedResponse(page);
+            // No ESI tags found on this page. Bail quickly, and don't display the ESI notification.
+            this.sendDecoratedResponse(page, 0);
             return;
         }
 
-        this.decoratedPage = new Array( (esiTags.length *2) +2 );
+        this.decoratedPage = new Array( (esiTags.length *2) +1 );
         this.completedRequests = new Array(esiTags.length);
 
         var esiRequests = new Array(esiTags.length);
@@ -192,8 +208,7 @@ EsiProcessorStreamDecorator.prototype = {
             }
             */
 
-            // TODO This looks messy. Consider alternatives, or at least make the approach more generic.
-            esiRequests[i].EsiProcessorStreamDecorator_handle = this;
+            let that = this;
             esiRequests[i].onreadystatechange = function( event ) {
 
                 if (this.readyState != 4)  { return; }
@@ -204,7 +219,7 @@ EsiProcessorStreamDecorator.prototype = {
                     esiContent = 'ESI error for request' + j + ': ' + this.statusText;
                 }
 
-                this.EsiProcessorStreamDecorator_handle.handleEsiResponse(j, esiContent);
+                that.handleEsiResponse(j, esiContent);
             }
 
             esiRequests[i].send(null);
@@ -223,8 +238,7 @@ EsiProcessorStreamDecorator.prototype = {
             // FIXME: create an extension config param for security level.
         }
 
-        this.decoratedPage[this.decoratedPage.length-2] = page.substr(cursor);
-        this.decoratedPage[this.decoratedPage.length-1] = this.getEsiCss();
+        this.decoratedPage[this.decoratedPage.length-1] = page.substr(cursor);
     },
 
 
@@ -232,7 +246,7 @@ EsiProcessorStreamDecorator.prototype = {
 
         annotatedEsiContent = new Array(4);
         annotatedEsiContent[0] = '<!-- ESI tag processed by ESI Processor. -->';
-        annotatedEsiContent[1] = '<div class="esi_processor-injected" onmouseover="esi_processor_highlight(this)" onmouseout="esi_processor_unhighlight(this)">';
+        annotatedEsiContent[1] = '<div style="display:inline-block;padding:0px;margin:0px;border:0px">';
         annotatedEsiContent[2] = esiContent;
         annotatedEsiContent[3] = '</div><!-- End ESI tag. -->';
 
@@ -250,10 +264,11 @@ EsiProcessorStreamDecorator.prototype = {
         }
 
         if (esiRequestsComplete) {
-            this.sendDecoratedResponse( this.decoratedPage.join('') );
+            this.sendDecoratedResponse( this.decoratedPage.join(''), this.completedRequests.length );
         }
     },
 
+    // OLD. get rid of this. the hover states should use the :hover pseudo-class anyway.
     getEsiCss: function() {
         // FIXME Handle this in a browser overlay. The end-user's DOM shouldn't change from what they'd expect.
         return '<style type="text/css"> \n\
