@@ -33,6 +33,7 @@ EsiProcessorStreamDecorator.prototype = {
 
     onStartRequest: function(request, context) {
         try {
+
             if ( request.contentType 
                 && ( request.contentType.indexOf("text") >= 0 || request.contentType.indexOf("xml") >= 0 || request.contentType.indexOf("html") >= 0 ) 
                 || this.acceptedMimeTypes.indexOf( request.contentType ) >= 0 ) {
@@ -55,7 +56,6 @@ EsiProcessorStreamDecorator.prototype = {
     },
 
     onDataAvailable: function(request, context, inputStream, offset, count) {
-
         try {
 
             if ( bypass ) {
@@ -109,7 +109,7 @@ EsiProcessorStreamDecorator.prototype = {
             try {
                 var storageStream = CCIN("@mozilla.org/storagestream;1", "nsIStorageStream");
                 // FIXME: Why do I run out of space unless I init the stream to 3x length? Multi-byte characters?
-                storageStream.init(8192, page.length *3, null);
+                storageStream.init(8192, page.length, null);
 
                 var binaryOutputStream = CCIN("@mozilla.org/binaryoutputstream;1",
                         "nsIBinaryOutputStream");
@@ -130,7 +130,7 @@ EsiProcessorStreamDecorator.prototype = {
 
                 binaryOutputStream.close();
                 storageStream.close();
-
+                // TODO Nullify the member properties as well.
                 this.requestContext = null;
 
                 if ( esiBlocks ) {
@@ -145,7 +145,7 @@ EsiProcessorStreamDecorator.prototype = {
                         let nbTimeout = gBrowser.getNotificationBox();
                         var esiNotification = nbTimeout.getNotificationWithValue("esi-processor-notification");
                         nbTimeout.removeNotification( esiNotification );
-                    }, 10000);
+                    }, 10000 );
                 }
 
             } catch (e) {
@@ -199,8 +199,6 @@ EsiProcessorStreamDecorator.prototype = {
             esiRequests[i] = new XMLHttpRequest();
             esiRequests[i].open('GET', esiUrl, true);
 
-            let j = i;
-
             // FIXME: Check the usefulness of this feature, and then cast vendorSub to a float.
             /*
             if ( true || window.navigator.vendorSub >= 3.5 )
@@ -213,6 +211,7 @@ EsiProcessorStreamDecorator.prototype = {
             }
             */
 
+            let j = i;
             let that = this;
             esiRequests[i].onreadystatechange = function( event ) {
 
@@ -233,7 +232,7 @@ EsiProcessorStreamDecorator.prototype = {
             // FIXME: Fix the DOM and then bail if there's no src attribute.
             // TODO: Try using netscape.security.PrivilegeManager.enablePrivilege("UniversalBrowserRead")
             // This should work for FF v3 and 4.
-            // TODO: Find out if esi src attributes can be relative URLs.
+            // TODO: Check the spec to determine if esi src attributes can be relative URLs. I think they can.
             esiRequest.channel.loadFlags |= Components.interfaces.nsIRequest.LOAD_BYPASS_CACHE;
 
             // TODO: If the ESI spec can't send cookies, then try to disable them in the request.
@@ -249,16 +248,12 @@ EsiProcessorStreamDecorator.prototype = {
 
     handleEsiResponse: function(esiIndex, esiContent) {
 
-        annotatedEsiContent = new Array(4);
-        annotatedEsiContent[0] = '<!-- ESI tag processed by ESI Processor. -->';
-        annotatedEsiContent[1] = '<div style="display:inline-block;padding:0px;margin:0px;border:0px">';
-        annotatedEsiContent[2] = esiContent;
-        annotatedEsiContent[3] = '</div><!-- End ESI tag. -->';
-
-        this.decoratedPage[(esiIndex*2) +1] = annotatedEsiContent.join('');
+        this.decoratedPage[(esiIndex*2) +1] = 
+            '<!-- ESI tag processed by ESI Processor. -->' + 
+            esiContent + 
+            '<!-- End ESI tag. -->';
         this.completedRequests[esiIndex] = true;
 
-        // TODO extract method.
         var esiRequestsComplete = true;
         for (var i = 0; i < this.completedRequests.length; i++) { 
 
@@ -272,53 +267,5 @@ EsiProcessorStreamDecorator.prototype = {
             this.sendDecoratedResponse( this.decoratedPage.join(''), this.completedRequests.length );
         }
     },
-
-    // OLD. get rid of this. the hover states should use the :hover pseudo-class anyway.
-    getEsiCss: function() {
-        // FIXME Handle this in a browser overlay. The end-user's DOM shouldn't change from what they'd expect.
-        return '<style type="text/css"> \n\
-.esi_processor-injected { \n\
-    display: inline-block; \n\
-    padding: 0px; \n\
-    margin: 0px; \n\
-} \n\
-\n\
-.esi_processor_alertbar { \n\
-    position: fixed;\n\
-    bottom: 0px;\n\
-    font-size: 24px;\n\
-    color: blue;\n\
-    text-align: center;\n\
-}\n\
-</style>\n\
-<script type="text/javascript">\n\
-function esi_processor_highlight(esiBlock) {\n\
-  esiBlock.style.border = "2px dashed blue";\n\
-  esiBlock.style.margin = "-1px";\n\
-}\n\
-\n\
-function esi_processor_unhighlight(esiBlock) {\n\
-  esiBlock.style.border = "none";\n\
-  esiBlock.style.margin = "0px";\n\
-}\n\
-\n\
-(function() {\n\
-\n\
-    var alertbar = document.createElement("div");\n\
-    alertbar.className = "esi_processor_alertbar";\n\
-    alertbar.appendChild(document.createTextNode("ESI blocks were processed on this page."));\n\
-    document.body.appendChild(alertbar);\n\
-\n\
-    function removeAlertbar() {\n\
-        document.body.removeChild(alertbar);\n\
-    };\n\
-\n\
-    window.setTimeout(removeAlertbar, 10000);\n\
-})();\n\
-\n\
-</script>\n\
-';
-    }
-    
 
 };

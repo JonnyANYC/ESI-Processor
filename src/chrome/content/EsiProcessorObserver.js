@@ -11,6 +11,7 @@ if (typeof CCIN == "undefined") {
 
 
 EsiProcessorObserver = {
+    prefService: null,
 
     startup: function() {
 
@@ -91,11 +92,21 @@ EsiProcessorObserver = {
     },
     
     QueryInterface: function(aIID){
-        if (aIID.equals(Components.interfaces.nsIObserver) ||
+        if (aIID.equals(Ci.nsIObserver) ||
         aIID.equals(Components.interfaces.nsISupports)) {
             return this;
         }
-        
+
+        // DEBUG This function apparently isn't needed to observe preferences changes. Remove this eventually.
+        if (aIID.equals(Ci.nsIPrefBranch2)) { 
+            Components.utils.reportError("Received interface query for branch2.");
+        } else if (aIID.equals(Ci.nsIPrefService)) { 
+            Components.utils.reportError("Received interface query for prefs svc.");
+        } else { 
+            // DEBUG This gets called once for the nsIClassInfo interface.
+            Components.utils.reportError("Received unexpected interface query for :" + aIID);
+        }
+
         throw Components.results.NS_NOINTERFACE;
         
     },
