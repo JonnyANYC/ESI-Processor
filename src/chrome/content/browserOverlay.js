@@ -11,28 +11,29 @@ if (typeof CCIN == "undefined") {
 
 
 // main() for the script. Wrap in anon function to avoid name-clobbering or namespacing.
-(function() {
+function dontrunme() {
 
-    EsiProcessorObserver.enabledisable();
+    var esiProcessorObserver = new EsiProcessorObserver();
+    esiProcessorObserver.enabledisable();
 
     // FIXME: Move to an enable() method. And remove the observer when the extension is disabled.
     var observerService = Cc["@mozilla.org/observer-service;1"]
     .getService(Components.interfaces.nsIObserverService);
 
-    observerService.addObserver(EsiProcessorObserver,
+    observerService.addObserver(esiProcessorObserver,
         "http-on-examine-response", false);
 
-    EsiProcessorObserver.prefService = Cc["@mozilla.org/preferences-service;1"]
+    esiProcessorObserver.prefService = Cc["@mozilla.org/preferences-service;1"]
         .getService(Ci.nsIPrefService)
         .getBranch("extensions.esi_processor."); // do we need the branch yet?
 
     // Gecko prior to v13 requires the use of nsIPrefBranch2.
-    if (!("addObserver" in EsiProcessorObserver.prefService)) { 
-        EsiProcessorObserver.prefService.QueryInterface(Ci.nsIPrefBranch2);
+    if (!("addObserver" in esiProcessorObserver.prefService)) { 
+        esiProcessorObserver.prefService.QueryInterface(Ci.nsIPrefBranch2);
     }
 
-    EsiProcessorObserver.prefService.addObserver("", EsiProcessorObserver, false);
-    EsiProcessorObserver.prefService.QueryInterface(Ci.nsIPrefBranch);
+    esiProcessorObserver.prefService.addObserver("", esiProcessorObserver, false);
+    esiProcessorObserver.prefService.QueryInterface(Ci.nsIPrefBranch);
 
-    window.addEventListener("unload", function(event) { EsiProcessorObserver.shutdown(); }, false);
-})();
+    window.addEventListener("unload", function(event) { esiProcessorObserver.shutdown(); }, false);
+}

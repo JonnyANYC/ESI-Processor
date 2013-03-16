@@ -3,7 +3,7 @@
 IF NOT EXIST install.rdf GOTO usage
 IF NOT EXIST ..\build\NUL MD ..\build
 
-zip -r -u ../build/esi_processor.xpi * -x .hg -x build.bat
+zip -r -FS ../build/esi_processor.xpi * -x .hg -x build.bat
 GOTO done
 
 :usage

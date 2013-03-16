@@ -9,6 +9,9 @@ if (typeof CCIN == "undefined") {
     }
 };
 
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
+
+
 
 function EsiProcessorStreamDecorator() {
     this.requestContext = { 
@@ -21,9 +24,18 @@ function EsiProcessorStreamDecorator() {
 
     decoratedPage = [];
     completedRequests = [];
+
+    this.wrappedJSObject = this;
 };
 
 EsiProcessorStreamDecorator.prototype = {
+
+    classDescription: "ESI Processor Stream Decorator Javascript XPCOM Component",
+    classID:          Components.ID("{12345678-1234-4321-1234-1234567890AC}"),
+    contractID:       "@angelajonhome.com/esiprocessorstreamdecorator;1",
+    receivedData: null,
+
+
     originalListener: null,
     requestContext: null,
     bypass: null,
@@ -130,30 +142,30 @@ EsiProcessorStreamDecorator.prototype = {
 
                 binaryOutputStream.close();
                 storageStream.close();
+
                 // TODO Nullify the member properties as well.
                 this.requestContext = null;
 
-                if ( esiBlocks ) {
-
-                    let nb = gBrowser.getNotificationBox();
-                    nb.appendNotification(
-                        esiBlocks + " ESI include(s) were processed on this page.", 
-                        "esi-processor-notification",
-                        null, nb.PRIORITY_INFO_MEDIUM, null );
-
-                    setTimeout( function() { 
-                        let nbTimeout = gBrowser.getNotificationBox();
-                        var esiNotification = nbTimeout.getNotificationWithValue("esi-processor-notification");
-                        nbTimeout.removeNotification( esiNotification );
-                    }, 10000 );
-                }
-
             } catch (e) {
-                Components.utils.reportError("\nError on final send to client for " + request.name +": \n\tMessage: " + e.message + "\n\tFile: " + e.fileName + "  line: " + e.lineNumber + "\n");
+                Components.utils.reportError("\nError on final send to client for " + this.requestContext.request.name +": \n\tMessage: " + e.message + "\n\tFile: " + e.fileName + "  line: " + e.lineNumber + "\n");
                 if (binaryOutputStream) { binaryOutputStream.close(); }
                 if (storageStream) { storageStream.close(); }
                 throw e;
             }
+
+            if ( esiBlocks ) {
+
+                var alertsService = Cc["@mozilla.org/alerts-service;1"].getService(Ci.nsIAlertsService);
+                alertsService.showAlertNotification(
+                    "chrome://mozapps/skin/downloads/downloadIcon.png", // TODO find a better icon
+                    "ESI Processor notification", 
+                    esiBlocks + " ESI include(s) were processed on this page.", 
+                    false, 
+                    null,
+                    null,
+                    "esi-processor-notification");
+            }
+
     },
 
     QueryInterface: function (aIID) {
@@ -196,7 +208,12 @@ EsiProcessorStreamDecorator.prototype = {
             esiUrl = this.esiTagPatternSingle.exec(esiTags[i])[1];
             Components.utils.reportError("Found an ESI include at position " + cursor + " with tag " + esiTags[i] + " and tag components " + esiUrl);
 
-            esiRequests[i] = new XMLHttpRequest();
+            // TODO Do some sanity checking on the URL ((/https:/// only, etc.))
+            // COMPAT: Gecko 16+  See: https://developer.mozilla.org/en-US/docs/DOM/XMLHttpRequest/Using_XMLHttpRequest#Using_XMLHttpRequest_from_JavaScript_modules_.2F_XPCOM_components
+            const XMLHttpRequest = Components.Constructor("@mozilla.org/xmlextras/xmlhttprequest;1");
+            esiRequests[i] = XMLHttpRequest();
+            //COMPAT: Gecko 12+
+            esiRequests[i].timeout = 60000; // TODO Make this a config param.
             esiRequests[i].open('GET', esiUrl, true);
 
             // FIXME: Check the usefulness of this feature, and then cast vendorSub to a float.
@@ -269,3 +286,13 @@ EsiProcessorStreamDecorator.prototype = {
     },
 
 };
+
+
+var components = [EsiProcessorStreamDecorator];
+if ("generateNSGetFactory" in XPCOMUtils)
+  var NSGetFactory = XPCOMUtils.generateNSGetFactory(components);  // Firefox 4.0 and higher
+else
+  var NSGetModule = XPCOMUtils.generateNSGetModule(components);    // Firefox 3.x
+
+
+

@@ -9,11 +9,31 @@ if (typeof CCIN == "undefined") {
     }
 };
 
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
-EsiProcessorObserver = {
-    prefService: null,
+// Components.utils.import("chrome://esi_processor/content/EsiProcessorStreamDecorator.js");
+
+function EsiProcessorObserver() {
+
+ Components.utils.reportError("constructor.");
+    //this.wrappedJSObject = this;
+    _initialized = false;
+    hostList = null;
+    numTimesCalled = 0;
+    prefService = null;
+
+    //this.startup();
+}
+
+EsiProcessorObserver.prototype = { 
+
+    classDescription: "ESI Processor Observer Javascript XPCOM Component",
+    classID:          Components.ID("{12345678-1234-4321-1234-1234567890AB}"),
+    contractID:       "@angelajonhome.com/esiprocessorobserver;1",
 
     startup: function() {
+
+        // TODO Consider moving all of this to the constuctor, as long as the observers are available at that point.
 
         if ( this._initialized )  { 
             // TODO: change to a warning, or accept repeated calls to this as usual process.
@@ -21,10 +41,21 @@ EsiProcessorObserver = {
             return;
         }
 
-        this.hostList = null;
-        this.numTimesCalled = 0;
+        this.prefService = Cc["@mozilla.org/preferences-service;1"]
+            .getService(Ci.nsIPrefService)
+            .getBranch("extensions.esi_processor."); // do we need the branch yet?
 
-        var hostListPref = Application.prefs.getValue("extensions.esi_processor.hostlist", null);        
+        // Gecko prior to v13 requires the use of nsIPrefBranch2.
+        if (!("addObserver" in this.prefService)) { 
+            this.prefService.QueryInterface(Ci.nsIPrefBranch2);
+        }
+
+        this.prefService.addObserver("", this, false);
+        this.prefService.QueryInterface(Ci.nsIPrefBranch);
+
+        // FIXME The following line throws an error if the pref doesn't exist. 
+        // Do I really need to wrap this in a try...catch block?
+        var hostListPref = this.prefService.getCharPref("hostlist");
         if ( hostListPref != null && hostListPref.length > 0 )
         {
             this.hostList = this._sanitizeHostList( hostListPref.split(",", 25) );
@@ -33,15 +64,24 @@ EsiProcessorObserver = {
             this.hostList = new Array(0);
         }
 
-        // FIXME: set up a listener on the prefs.
+        var os = Cc["@mozilla.org/observer-service;1"]
+            .getService(Ci.nsIObserverService);
+
+        os.addObserver(this, "http-on-examine-response", false);
 
         this._initialized = true;
-        Components.utils.reportError("init done. hostlist len: " + this.hostList.length);
+
+        this._rndNum = Math.random();
+        Components.utils.reportError("init done for instance# " + this._rndNum + ". hostlist len: " + this.hostList.length);
     },
 
     shutdown: function() {
         // FIXME: Remove any remaining observers on window shutdown.
-        Components.utils.reportError("shutdown: not implemented yet.");
+        var observerService = Cc["@mozilla.org/observer-service;1"]
+            .getService(Ci.nsIObserverService);
+
+        observerService.removeObserver(this, "http-on-examine-response");
+        this.prefService.removeObserver("", this);
     },
 
 
@@ -64,15 +104,17 @@ EsiProcessorObserver = {
                 // TODO: Consider skipping file: requests. Or make it a config option. First test if I can make Ajax requests from a file: page.
                 // TODO: check for all other legal protocols supported by Firefox.
 
-                var request = aSubject.QueryInterface(Components.interfaces.nsIHttpChannel);
+                var request = aSubject.QueryInterface(Ci.nsIHttpChannel);
 
                 if (request.URI && request.URI.scheme && request.originalURI   
                     && (request.URI.scheme == "http" || request.URI.scheme == "file")
                     && (request.originalURI.path != "/favicon.ico") 
                     && this.isHostNameMatch( request.URI.host ) ) { 
 
-                    var esiProcessorStreamDecorator = new EsiProcessorStreamDecorator();
-                    request.QueryInterface(Components.interfaces.nsITraceableChannel);
+                    Components.utils.reportError("host name matched for " + request.URI.path + " on instance# " + this._rndNum);
+                    const EsiProcessorStreamDecorator = Components.Constructor("@angelajonhome.com/esiprocessorstreamdecorator;1");
+                    var esiProcessorStreamDecorator = EsiProcessorStreamDecorator().wrappedJSObject;
+                    request.QueryInterface(Ci.nsITraceableChannel);
                     esiProcessorStreamDecorator.originalListener = request.setNewListener(esiProcessorStreamDecorator);
                 }
 
@@ -84,7 +126,15 @@ EsiProcessorObserver = {
 
             // FIXME: instantiate the prefs service, then fetch the latest data.
             // TODO: Should I try to ignore this call if the current object is what triggered the update?
-            Components.utils.reportError("Prefs were updated somewhere.");
+            Components.utils.reportError("Prefs were updated somewhere. Noticed by instance# " + this._rndNum);
+            Components.utils.reportError("New prefs name: " + aData + " and value: " + aSubject.getCharPref(aData) );
+
+            this.hostList = this._sanitizeHostList( aSubject.getCharPref(aData).split(",", 25) );
+            Components.utils.reportError("hostlist now: " + this.hostList);
+
+        } else if (aTopic == "profile-after-change") {
+
+            this.startup();
 
         } else {
             Components.utils.reportError("Received unexpected observer event for: " + aTopic);
@@ -92,8 +142,7 @@ EsiProcessorObserver = {
     },
     
     QueryInterface: function(aIID){
-        if (aIID.equals(Ci.nsIObserver) ||
-        aIID.equals(Components.interfaces.nsISupports)) {
+        if (aIID.equals(Ci.nsIObserver) || aIID.equals(Ci.nsISupports)) {
             return this;
         }
 
@@ -102,8 +151,9 @@ EsiProcessorObserver = {
             Components.utils.reportError("Received interface query for branch2.");
         } else if (aIID.equals(Ci.nsIPrefService)) { 
             Components.utils.reportError("Received interface query for prefs svc.");
+        } else if (aIID.equals(Ci.nsIClassInfo)) { 
+            // No-op; this gets called once for the nsIClassInfo interface.
         } else { 
-            // DEBUG This gets called once for the nsIClassInfo interface.
             Components.utils.reportError("Received unexpected interface query for :" + aIID);
         }
 
@@ -144,8 +194,9 @@ EsiProcessorObserver = {
         if (params.out) {
             // FIXME: Implement an enable/disable feature and let users toggle it here.
             // FIXME: When disabled, also consider disabling the listener on the hostlist pref, and any other shutdown / sleep actions.
-            this.hostList = this._sanitizeHostList( params.out.hostList.split("\n", 25) );
-            Application.prefs.setValue("extensions.esi_processor.hostlist", this.hostList.join(","));
+            Application.prefs.setValue(
+                "extensions.esi_processor.hostlist", 
+                this._sanitizeHostList( params.out.hostList.split("\n", 25) ).join(",") );
             Components.utils.reportError("Configure dialog saved. new host list: " + params.out.hostList);
         } else {
             Components.utils.reportError("Configure dialog cancelled.");
@@ -176,6 +227,7 @@ EsiProcessorObserver = {
         return domain;
     },
 
+    allowedHostPattern: /^[\w-]*\.*[\w-]+\.[\w-]+$/,
 
     _sanitizeHostList: function( dirtyHostList ) {
 
@@ -185,18 +237,26 @@ EsiProcessorObserver = {
         // FIXME: Reject host lists that are dangerously short, such as e.com, etc.
         // FIXME: Update the pattern to ignore leading and trailing spaces. AFAIK, JS doesn't have a trim() method.
         // FIXME: If possible, reject host entries that include an underscore, which is included in \w.
-        var allowedHostPattern = /^[\w-]*\.*[\w-]+\.[\w-]+$/;
 
+Components.utils.reportError("in host list length: " + dirtyHostList.length + " and list: " + dirtyHostList);
         for ( var hl = 0; hl < dirtyHostList.length; hl++)
         {
             if ( dirtyHostList[hl] == null || dirtyHostList[hl].length == 0  )  continue;
             if ( dirtyHostList[hl].toLocaleLowerCase() == 'localhost' || 
-                 allowedHostPattern.test( dirtyHostList[hl] ) )
+                 this.allowedHostPattern.test( dirtyHostList[hl] ) )
                 { hostList.push( dirtyHostList[hl].toLocaleLowerCase() );  }
         }
 
         return hostList;
     },
 
-
 };
+
+var components = [EsiProcessorObserver];
+if ("generateNSGetFactory" in XPCOMUtils)
+  var NSGetFactory = XPCOMUtils.generateNSGetFactory(components);  // Firefox 4.0 and higher
+else
+  var NSGetModule = XPCOMUtils.generateNSGetModule(components);    // Firefox 3.x
+
+
+
