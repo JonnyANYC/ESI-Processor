@@ -11,8 +11,6 @@ if (typeof CCIN == "undefined") {
 
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
-// Components.utils.import("chrome://esi_processor/content/EsiProcessorStreamDecorator.js");
-
 function EsiProcessor() {
 
     _initialized = false;
