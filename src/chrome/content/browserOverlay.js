@@ -9,31 +9,54 @@ if (typeof CCIN == "undefined") {
     }
 };
 
+var EsiProcessorOverlay = {
 
-// main() for the script. Wrap in anon function to avoid name-clobbering or namespacing.
-function dontrunme() {
+    enabledisable: function( event ) {
+        // TODO: initialize just once when enabled. 
+        // TODO: Consider using Application.prefs.lock(true) to prevent other code from changing enable/disable flag
+        // See: https://developer.mozilla.org/en-US/docs/Toolkit_API/extIPreference 
+        
+    },
 
-    var esiProcessorObserver = new EsiProcessorObserver();
-    esiProcessorObserver.enabledisable();
+    configure: function( event ) {
 
-    // FIXME: Move to an enable() method. And remove the observer when the extension is disabled.
-    var observerService = Cc["@mozilla.org/observer-service;1"]
-    .getService(Components.interfaces.nsIObserverService);
+        var params;
 
-    observerService.addObserver(esiProcessorObserver,
-        "http-on-examine-response", false);
+        if (null == this._preferencesWindow || this._preferencesWindow.closed) {
+            let instantApply =
+              Application.prefs.get("browser.preferences.instantApply");
+            let features =
+              "chrome,resizable=yes,titlebar,toolbar,centerscreen" +
+              (instantApply.value ? ",dialog=no" : ",modal");
 
-    esiProcessorObserver.prefService = Cc["@mozilla.org/preferences-service;1"]
-        .getService(Ci.nsIPrefService)
-        .getBranch("extensions.esi_processor."); // do we need the branch yet?
+            let hostList = Application.prefs.get("extensions.esi_processor.hostlist").value.split(",", 25);
+            params = { 
+                inn: {
+                    enabled: true,
+                    hostList: hostList
+                }, 
+                out: null
+            };
 
-    // Gecko prior to v13 requires the use of nsIPrefBranch2.
-    if (!("addObserver" in esiProcessorObserver.prefService)) { 
-        esiProcessorObserver.prefService.QueryInterface(Ci.nsIPrefBranch2);
-    }
+            this._preferencesWindow =
+              window.openDialog(
+                "chrome://esi_processor/content/configure.xul",
+                "", features, params);
+        }
 
-    esiProcessorObserver.prefService.addObserver("", esiProcessorObserver, false);
-    esiProcessorObserver.prefService.QueryInterface(Ci.nsIPrefBranch);
+        this._preferencesWindow.focus();
 
-    window.addEventListener("unload", function(event) { esiProcessorObserver.shutdown(); }, false);
-}
+        if (params && params.out) {
+            // FIXME: Implement an enable/disable feature and let users toggle it here.
+            // FIXME: When disabled, also consider disabling the listener on the hostlist pref, and any other shutdown / sleep actions.
+            Application.prefs.setValue(
+                "extensions.esi_processor.hostlist", 
+                // this._sanitizeHostList( params.out.hostList.split("\n", 25) ).join(",") );
+                params.out.hostList.split("\n", 25).join(",") );
+            Components.utils.reportError("Configure dialog saved. new host list: " + params.out.hostList);
+        } else {
+            Components.utils.reportError("Configure dialog cancelled.");
+        }
+    },
+
+};

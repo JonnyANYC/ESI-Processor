@@ -15,14 +15,10 @@ Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
 function EsiProcessor() {
 
- Components.utils.reportError("constructor.");
-    //this.wrappedJSObject = this;
     _initialized = false;
     hostList = null;
     numTimesCalled = 0;
     prefService = null;
-
-    //this.startup();
 }
 
 EsiProcessor.prototype = { 
@@ -41,6 +37,7 @@ EsiProcessor.prototype = {
             return;
         }
 
+        // TODO: Consider using FUEL if it's easier to be consistent with the overlay: https://developer.mozilla.org/en-US/docs/Toolkit_API/FUEL#XPCOM 
         this.prefService = Cc["@mozilla.org/preferences-service;1"]
             .getService(Ci.nsIPrefService)
             .getBranch("extensions.esi_processor."); // do we need the branch yet?
@@ -70,9 +67,6 @@ EsiProcessor.prototype = {
         os.addObserver(this, "http-on-examine-response", false);
 
         this._initialized = true;
-
-        this._rndNum = Math.random();
-        Components.utils.reportError("init done for instance# " + this._rndNum + ". hostlist len: " + this.hostList.length);
     },
 
     shutdown: function() {
@@ -82,14 +76,6 @@ EsiProcessor.prototype = {
 
         observerService.removeObserver(this, "http-on-examine-response");
         this.prefService.removeObserver("", this);
-    },
-
-
-    enabledisable: function( event ) {
-        // FIXME: Maybe this should be moved to a different object that handles prefs.
-        // TODO: initialize just once when enabled. 
-        this.startup();
-        // observerService.removeObserver(EsiProcessor, "http-on-examine-response");
     },
 
 
@@ -106,15 +92,16 @@ EsiProcessor.prototype = {
 
                 var channel = aSubject.QueryInterface(Ci.nsIHttpChannel);
 
-                if (channel.URI && channel.URI.scheme && channel.originalURI   
+                if (channel.URI && channel.URI.scheme && channel.responseStatus && channel.originalURI   
                     && (channel.URI.scheme == "http" || channel.URI.scheme == "file")
                     && (channel.responseStatus != 301 && channel.responseStatus < 500)
                     && (channel.originalURI.path != "/favicon.ico") 
                     && this.isHostNameMatch( channel.URI.host ) ) { 
 
                     // TODO Also handle some or all HTTP error codes as valid responses. But skip 301s at least.
+                    // TODO Skip sensitive URLs, such as to Firefox update servers, browser XUL, etc.
                     // TODO Consider removing cookies, since they won't be set on a proper ESI processor.
-                    Components.utils.reportError("host name matched for " + channel.URI.path + " and resp status " + channel.responseStatus + " on instance# " + this._rndNum);
+                    Components.utils.reportError("host name matched for " + channel.URI.path + " and resp status " + channel.responseStatus);
                     const EsiProcessorStreamDecorator = Components.Constructor("@angelajonhome.com/esiprocessorstreamdecorator;1");
                     var esiProcessorStreamDecorator = EsiProcessorStreamDecorator().wrappedJSObject;
                     channel.QueryInterface(Ci.nsITraceableChannel);
@@ -122,7 +109,7 @@ EsiProcessor.prototype = {
                 } 
                 // DEBUG
                 else { 
-                    Components.utils.reportError("skipping for URL " + channel.URI.path);
+                    Components.utils.reportError("skipping for response " + channel.responseStatus + " from URL " + channel.URI.host + channel.URI.path );
                 }
 
             } catch (e) {
@@ -138,6 +125,9 @@ EsiProcessor.prototype = {
 
             this.hostList = this._sanitizeHostList( aSubject.getCharPref(aData).split(",", 25) );
             Components.utils.reportError("hostlist now: " + this.hostList);
+
+            // FIXME: Check for disable, and if so, call: observerService.removeObserver(EsiProcessor, "http-on-examine-response");
+
 
         } else if (aTopic == "profile-after-change") {
 
@@ -181,34 +171,6 @@ EsiProcessor.prototype = {
 
         return false;
     }, 
-
-
-    configure: function( event ) {
-
-        var params = { 
-            inn: {
-                enabled: true,
-                hostList: this.hostList
-            }, 
-            out: null
-        };
-
-        window.openDialog(  "chrome://esi_processor/content/configure.xul", 
-                            "",
-                            "chrome, dialog, modal, resizable=yes", 
-                            params ).focus();
-
-        if (params.out) {
-            // FIXME: Implement an enable/disable feature and let users toggle it here.
-            // FIXME: When disabled, also consider disabling the listener on the hostlist pref, and any other shutdown / sleep actions.
-            Application.prefs.setValue(
-                "extensions.esi_processor.hostlist", 
-                this._sanitizeHostList( params.out.hostList.split("\n", 25) ).join(",") );
-            Components.utils.reportError("Configure dialog saved. new host list: " + params.out.hostList);
-        } else {
-            Components.utils.reportError("Configure dialog cancelled.");
-        }
-    },
 
 
     urlHostMatchPattern: /^http:\/\/([\w\.-]+)/i,
