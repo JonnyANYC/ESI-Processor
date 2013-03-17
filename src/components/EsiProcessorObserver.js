@@ -13,7 +13,7 @@ Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
 // Components.utils.import("chrome://esi_processor/content/EsiProcessorStreamDecorator.js");
 
-function EsiProcessorObserver() {
+function EsiProcessor() {
 
  Components.utils.reportError("constructor.");
     //this.wrappedJSObject = this;
@@ -25,11 +25,11 @@ function EsiProcessorObserver() {
     //this.startup();
 }
 
-EsiProcessorObserver.prototype = { 
+EsiProcessor.prototype = { 
 
     classDescription: "ESI Processor Observer Javascript XPCOM Component",
     classID:          Components.ID("{12345678-1234-4321-1234-1234567890AB}"),
-    contractID:       "@angelajonhome.com/esiprocessorobserver;1",
+    contractID:       "@angelajonhome.com/esiprocessor;1",
 
     startup: function() {
 
@@ -89,7 +89,7 @@ EsiProcessorObserver.prototype = {
         // FIXME: Maybe this should be moved to a different object that handles prefs.
         // TODO: initialize just once when enabled. 
         this.startup();
-        // observerService.removeObserver(EsiProcessorObserver, "http-on-examine-response");
+        // observerService.removeObserver(EsiProcessor, "http-on-examine-response");
     },
 
 
@@ -104,22 +104,29 @@ EsiProcessorObserver.prototype = {
                 // TODO: Consider skipping file: requests. Or make it a config option. First test if I can make Ajax requests from a file: page.
                 // TODO: check for all other legal protocols supported by Firefox.
 
-                var request = aSubject.QueryInterface(Ci.nsIHttpChannel);
+                var channel = aSubject.QueryInterface(Ci.nsIHttpChannel);
 
-                if (request.URI && request.URI.scheme && request.originalURI   
-                    && (request.URI.scheme == "http" || request.URI.scheme == "file")
-                    && (request.originalURI.path != "/favicon.ico") 
-                    && this.isHostNameMatch( request.URI.host ) ) { 
+                if (channel.URI && channel.URI.scheme && channel.originalURI   
+                    && (channel.URI.scheme == "http" || channel.URI.scheme == "file")
+                    && (channel.responseStatus != 301 && channel.responseStatus < 500)
+                    && (channel.originalURI.path != "/favicon.ico") 
+                    && this.isHostNameMatch( channel.URI.host ) ) { 
 
-                    Components.utils.reportError("host name matched for " + request.URI.path + " on instance# " + this._rndNum);
+                    // TODO Also handle some or all HTTP error codes as valid responses. But skip 301s at least.
+                    // TODO Consider removing cookies, since they won't be set on a proper ESI processor.
+                    Components.utils.reportError("host name matched for " + channel.URI.path + " and resp status " + channel.responseStatus + " on instance# " + this._rndNum);
                     const EsiProcessorStreamDecorator = Components.Constructor("@angelajonhome.com/esiprocessorstreamdecorator;1");
                     var esiProcessorStreamDecorator = EsiProcessorStreamDecorator().wrappedJSObject;
-                    request.QueryInterface(Ci.nsITraceableChannel);
-                    esiProcessorStreamDecorator.originalListener = request.setNewListener(esiProcessorStreamDecorator);
+                    channel.QueryInterface(Ci.nsITraceableChannel);
+                    esiProcessorStreamDecorator.originalListener = channel.setNewListener(esiProcessorStreamDecorator);
+                } 
+                // DEBUG
+                else { 
+                    Components.utils.reportError("skipping for URL " + channel.URI.path);
                 }
 
             } catch (e) {
-                Components.utils.reportError("\nEsiProcessorObserver error: \n\tMessage: " + e.message + "\n\tFile: " + e.fileName + "  line: " + e.lineNumber + "\n");
+                Components.utils.reportError("\nEsiProcessor error: \n\tMessage: " + e.message + "\n\tFile: " + e.fileName + "  line: " + e.lineNumber + "\n");
             }
 
         } else if (aTopic == "nsPref:changed") {
@@ -252,7 +259,7 @@ Components.utils.reportError("in host list length: " + dirtyHostList.length + " 
 
 };
 
-var components = [EsiProcessorObserver];
+var components = [EsiProcessor];
 if ("generateNSGetFactory" in XPCOMUtils)
   var NSGetFactory = XPCOMUtils.generateNSGetFactory(components);  // Firefox 4.0 and higher
 else

@@ -5,8 +5,8 @@ resource  esi_processor              modules/
 overlay chrome://browser/content/browser.xul  chrome://esi_processor/content/browserOverlay.xul
 
 component {12345678-1234-4321-1234-1234567890AB} components/EsiProcessorObserver.js
-contract @angelajonhome.com/esiprocessorobserver;1 {12345678-1234-4321-1234-1234567890AB}
-category profile-after-change EsiProcessorObserver @angelajonhome.com/esiprocessorobserver;1
+contract @angelajonhome.com/esiprocessor;1 {12345678-1234-4321-1234-1234567890AB}
+category profile-after-change EsiProcessor @angelajonhome.com/esiprocessor;1
 
 component {12345678-1234-4321-1234-1234567890AC} components/EsiProcessorStreamDecorator.js
 contract @angelajonhome.com/esiprocessorstreamdecorator;1 {12345678-1234-4321-1234-1234567890AC}

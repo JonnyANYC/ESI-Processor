@@ -7,8 +7,6 @@
 <overlay id="esi_processor-browser-overlay"
   xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
 
-  <script type="application/x-javascript" src="chrome://esi_processor/content/EsiProcessorStreamDecorator.js" />
-  <script type="application/x-javascript" src="chrome://esi_processor/content/EsiProcessorObserver.js" />
   <script type="application/x-javascript" src="chrome://esi_processor/content/browserOverlay.js" />
 
   <menupopup id="menu_ToolsPopup">

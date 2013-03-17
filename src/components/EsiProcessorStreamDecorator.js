@@ -157,7 +157,7 @@ EsiProcessorStreamDecorator.prototype = {
 
                 var alertsService = Cc["@mozilla.org/alerts-service;1"].getService(Ci.nsIAlertsService);
                 alertsService.showAlertNotification(
-                    "chrome://mozapps/skin/downloads/downloadIcon.png", // TODO find a better icon
+                    "chrome://mozapps/skin/extensions/alerticon-info-positive.png", // TODO find a better icon
                     "ESI Processor notification", 
                     esiBlocks + " ESI include(s) were processed on this page.", 
                     false, 
