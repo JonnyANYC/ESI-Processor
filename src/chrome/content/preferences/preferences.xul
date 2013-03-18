@@ -1,20 +1,62 @@
 <?xml version="1.0"?>
 <?xml-stylesheet href="chrome://global/skin/" type="text/css"?>   
 
-<prefwindow xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
-  <prefpane id="saveoptions" label="ESI Processor">
+<prefwindow xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
+    xmlns:html="http://www.w3.org/1999/xhtml">
+    <!-- TODO: Add a disclosure button, helpURI attribute to the prepane, or a second prefpane for instructions. -->
+  <prefpane id="esi_processor-configure" label="ESI Processor Configuration"
+      helpURI="chrome://esi_processor/content/preferences/preferences-help.xul">
     <preferences>
       <preference id="pref-hostlist" name="extensions.esi_processor.hostlist" type="string"/>
-      <preference id="pref-allowdomainvaluechange" name="extensions.esi_processor.allowdomainvaluechange" type="bool"/>
+      <preference id="pref-enabled" name="extensions.esi_processor.enabled" type="string"/>
     </preferences>
 
     <vbox flex="1">
-        
-        <groupbox flex="1">
-            <textbox label="Host list: (blank to enable on all hosts)" preference="pref-hostlist"/>
-        </groupbox>
+      <label value="On which host names should ESI Processor scan for ESI tags?" 
+        control="esi_processor-configure-hostList" />
+          <textbox id="esi_processor-configure-hostList" multiline="true" 
+            rows="5" cols="40"
+            newlines="pasteintact" 
+            wrap="false" 
+            label="Host list"
+            preference="pref-hostlist" />
         <spacer flex="1" style="min-height:1em" />
-        <checkbox label="Change the document.domain value when needed" preference="pref-allowdomainvaluechange"/>
+        <hbox align="center">
+          <label value="Enable / Disable:" control="esi_processor-configure-enabled" />
+          <radiogroup id="esi_processor-configure-enabled" preference="pref-enabled">
+        <groupbox flex="1">
+        <hbox align="center">
+            <radio
+              label="Disabled" 
+              value="off"
+              selected="true" />
+            <radio
+              label="Enabled for this session" 
+              value="session" />
+            <radio
+              label="Enabled permanently" 
+              value="permanent" />
+        </hbox>
+        </groupbox>
+          </radiogroup>
+          </hbox>
     </vbox>
   </prefpane>
-</prefwindow>
+
+  <prefpane id="esi_processor-configure-help" label="ESI Processor Configuration Help">
+
+      <description style="width: 300px">
+          Notes on the host list:
+              <html:ul><html:li>Enter one host name per line, up to 25 host names.</html:li>
+              <html:li>Each entry is matched against the host name as a substring. So for example, "cnn.com" 
+                  will match "mobile.cnn.com".</html:li>
+              <html:li>All entries must include at least one period. Top-level domains such as "com" or "uk" 
+                  are not allowed. However, "co.uk" is currently allowed. The on exception is "localhost", 
+                  which is allowed.</html:li>
+              <html:li>This is how you do it...</html:li>
+          </html:ul>
+      </description>
+
+  </prefpane>
+
+ </prefwindow>

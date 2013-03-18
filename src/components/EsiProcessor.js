@@ -12,16 +12,18 @@ if (typeof CCIN == "undefined") {
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
 function EsiProcessor() {
+    Components.utils.reportError("in constructor");
 
     _initialized = false;
     hostList = null;
     numTimesCalled = 0;
     prefService = null;
+    listening = false;
 }
 
 EsiProcessor.prototype = { 
 
-    classDescription: "ESI Processor Observer Javascript XPCOM Component",
+    classDescription: "ESI Processor Javascript XPCOM Component",
     classID:          Components.ID("{12345678-1234-4321-1234-1234567890AB}"),
     contractID:       "@angelajonhome.com/esiprocessor;1",
 
@@ -40,6 +42,33 @@ EsiProcessor.prototype = {
             .getService(Ci.nsIPrefService)
             .getBranch("extensions.esi_processor."); // do we need the branch yet?
 
+        // FIXME The following line throws an error if the pref doesn't exist. 
+        // Do I really need to wrap this in a try...catch block?
+        var hostListPref = this.prefService.getCharPref("hostlist");
+        if ( hostListPref != null && hostListPref.length > 0 )
+        {
+            this.hostList = this._sanitizeHostList( hostListPref.split("\n", 25) );
+        } else
+        {
+            this.hostList = new Array(0);
+        }
+
+        var enabledPref = this.prefService.getCharPref("enabled");
+        if ( enabledPref != null && enabledPref == "permanent" ) { 
+
+            var os = Cc["@mozilla.org/observer-service;1"]
+                .getService(Ci.nsIObserverService);
+
+            os.addObserver(this, "http-on-examine-response", false);
+            this.listening = true;
+
+        } else if ( enabledPref != null && enabledPref == "off" ) { 
+            // Do nothing.
+        } else { 
+            // Handle cases where the pref is set to "session", or anything else, or is null.
+            this.prefService.setCharPref("enabled", "off");
+        }
+
         // Gecko prior to v13 requires the use of nsIPrefBranch2.
         if (!("addObserver" in this.prefService)) { 
             this.prefService.QueryInterface(Ci.nsIPrefBranch2);
@@ -48,31 +77,17 @@ EsiProcessor.prototype = {
         this.prefService.addObserver("", this, false);
         this.prefService.QueryInterface(Ci.nsIPrefBranch);
 
-        // FIXME The following line throws an error if the pref doesn't exist. 
-        // Do I really need to wrap this in a try...catch block?
-        var hostListPref = this.prefService.getCharPref("hostlist");
-        if ( hostListPref != null && hostListPref.length > 0 )
-        {
-            this.hostList = this._sanitizeHostList( hostListPref.split(",", 25) );
-        } else
-        {
-            this.hostList = new Array(0);
-        }
-
-        var os = Cc["@mozilla.org/observer-service;1"]
-            .getService(Ci.nsIObserverService);
-
-        os.addObserver(this, "http-on-examine-response", false);
-
         this._initialized = true;
     },
 
+
     shutdown: function() {
-        // FIXME: Remove any remaining observers on window shutdown.
+        // FIXME: Remove any remaining observers on window shutdown, and nullify all member variables.
         var observerService = Cc["@mozilla.org/observer-service;1"]
             .getService(Ci.nsIObserverService);
 
         observerService.removeObserver(this, "http-on-examine-response");
+        this.listening = false;
         this.prefService.removeObserver("", this);
     },
 
@@ -118,14 +133,35 @@ EsiProcessor.prototype = {
 
             // FIXME: instantiate the prefs service, then fetch the latest data.
             // TODO: Should I try to ignore this call if the current object is what triggered the update?
-            Components.utils.reportError("Prefs were updated somewhere. Noticed by instance# " + this._rndNum);
-            Components.utils.reportError("New prefs name: " + aData + " and value: " + aSubject.getCharPref(aData) );
+            Components.utils.reportError("Prefs were updated somewhere. New prefs name: " + aData + " and value: " + aSubject.getCharPref(aData) );
 
-            this.hostList = this._sanitizeHostList( aSubject.getCharPref(aData).split(",", 25) );
-            Components.utils.reportError("hostlist now: " + this.hostList);
+            if ( aData == "hostlist" ) { 
+                this.hostList = this._sanitizeHostList( aSubject.getCharPref(aData).split("\n", 25) );
+                Components.utils.reportError("hostlist now: " + this.hostList);
 
-            // FIXME: Check for disable, and if so, call: observerService.removeObserver(EsiProcessor, "http-on-examine-response");
+            } else if ( aData == "enabled" ) {
 
+                if ( aSubject.getCharPref(aData) == "permanent" 
+                    || aSubject.getCharPref(aData) == "session" ) { 
+
+                    if ( !this.listening ) { 
+                        var os = Cc["@mozilla.org/observer-service;1"]
+                            .getService(Ci.nsIObserverService);
+
+                        os.addObserver(this, "http-on-examine-response", false);
+                        this.listening = true;
+                    }
+                } else { 
+
+                    if ( this.listening ) { 
+                        var observerService = Cc["@mozilla.org/observer-service;1"]
+                            .getService(Ci.nsIObserverService);
+
+                        observerService.removeObserver(this, "http-on-examine-response");
+                        this.listening = false;
+                    }
+                }
+            }
 
         } else if (aTopic == "profile-after-change") {
 
@@ -135,7 +171,8 @@ EsiProcessor.prototype = {
             Components.utils.reportError("Received unexpected observer event for: " + aTopic);
         }
     },
-    
+
+
     QueryInterface: function(aIID){
         if (aIID.equals(Ci.nsIObserver) || aIID.equals(Ci.nsISupports)) {
             return this;
@@ -155,6 +192,7 @@ EsiProcessor.prototype = {
         throw Components.results.NS_NOINTERFACE;
         
     },
+
 
     isHostNameMatch: function( hostName ) {
         var hostNameLowerCase = hostName.toLocaleLowerCase();
@@ -205,7 +243,7 @@ EsiProcessor.prototype = {
         // FIXME: Update the pattern to ignore leading and trailing spaces. AFAIK, JS doesn't have a trim() method.
         // FIXME: If possible, reject host entries that include an underscore, which is included in \w.
 
-Components.utils.reportError("in host list length: " + dirtyHostList.length + " and list: " + dirtyHostList);
+        Components.utils.reportError("in host list length: " + dirtyHostList.length + " and list: " + dirtyHostList);
         for ( var hl = 0; hl < dirtyHostList.length; hl++)
         {
             if ( dirtyHostList[hl] == null || dirtyHostList[hl].length == 0  )  continue;
