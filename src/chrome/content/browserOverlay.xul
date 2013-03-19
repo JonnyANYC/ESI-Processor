@@ -15,8 +15,11 @@
       insertbefore="devToolsEndSeparator">
       <menupopup>
         <menuitem id="esi_processor-enabledisable"
-          label="Enable / Disable"
+          label="Enable"
           accesskey="E"
+          type="checkbox"
+          checked="false"
+          autocheck="false"
           oncommand="EsiProcessorOverlay.enabledisable(event);" />
         <menuitem id="esi_processor-config"
           label="Options..."
@@ -32,8 +35,11 @@
       insertafter="appmenu_addons">
       <menupopup>
         <menuitem id="esi_processor-enabledisable"
-          label="Enable / Disable"
+          label="Enable"
           accesskey="E"
+          type="checkbox"
+          checked="false"
+          autocheck="false"
           oncommand="EsiProcessorOverlay.enabledisable(event);" />
         <menuitem id="esi_processor-config"
           label="Options..."

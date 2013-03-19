@@ -1,10 +1,22 @@
 var EsiProcessorOverlay = {
 
     enabledisable: function( event ) {
-        // TODO: initialize just once when enabled. 
-        // See: https://developer.mozilla.org/en-US/docs/Toolkit_API/extIPreference 
-        
+        // FIXME: Only updates the current window!
+        // Consider removing this menu option if it's not super-easy to update the menu automatically in all windows.
+        // TODO: Define constants somewhere for the three enabled states.
+        var enabled = Application.prefs.get("extensions.esi_processor.enabled").value;
+        if ( enabled == "off" ) { 
+            // TODO: Extract method.
+            Application.prefs.setValue("extensions.esi_processor.enabled", "session");
+            var menuItem = event.target;
+            menuItem.setAttribute("checked", "true");
+        } else { 
+            Application.prefs.setValue("extensions.esi_processor.enabled", "off");
+            var menuItem = event.target;
+            menuItem.setAttribute("checked", "false");
+        }        
     },
+
 
     configure: function( event ) {
 
@@ -27,3 +39,4 @@ var EsiProcessorOverlay = {
     },
 
 };
+
