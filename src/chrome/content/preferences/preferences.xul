@@ -1,11 +1,13 @@
 <?xml version="1.0"?>
 <?xml-stylesheet href="chrome://global/skin/" type="text/css"?>   
 
-<prefwindow xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
+<prefwindow id="esi_processor" 
+    xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
     xmlns:html="http://www.w3.org/1999/xhtml">
-    <!-- TODO: Add a disclosure button, helpURI attribute to the prepane, or a second prefpane for instructions. -->
+
   <prefpane id="esi_processor-configure" label="ESI Processor Configuration"
       helpURI="chrome://esi_processor/content/preferences/preferences-help.xul">
+
     <preferences>
       <preference id="pref-hostlist" name="extensions.esi_processor.hostlist" type="string"/>
       <preference id="pref-enabled" name="extensions.esi_processor.enabled" type="string"/>
@@ -24,26 +26,24 @@
         <hbox align="center">
           <label value="Enable / Disable:" control="esi_processor-configure-enabled" />
           <radiogroup id="esi_processor-configure-enabled" preference="pref-enabled">
-        <groupbox flex="1">
-        <hbox align="center">
-            <radio
-              label="Disabled" 
-              value="off"
-              selected="true" />
-            <radio
-              label="Enabled for this session" 
-              value="session" />
-            <radio
-              label="Enabled permanently" 
-              value="permanent" />
-        </hbox>
-        </groupbox>
+            <groupbox flex="1">
+              <radio
+                label="Disabled" 
+                value="off"
+                selected="true" />
+              <radio
+                label="Enabled for this session" 
+                value="session" />
+              <radio
+                label="Enabled permanently" 
+                value="permanent" />
+            </groupbox>
           </radiogroup>
-          </hbox>
+        </hbox>
     </vbox>
   </prefpane>
 
-  <prefpane id="esi_processor-configure-help" label="ESI Processor Configuration Help">
+  <prefpane id="esi_processor-configure-help" label="Click here for help">
 
       <description style="width: 300px">
           Notes on the host list:

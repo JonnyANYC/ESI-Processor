@@ -12,7 +12,6 @@ if (typeof CCIN == "undefined") {
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
 function EsiProcessor() {
-    Components.utils.reportError("in constructor");
 
     _initialized = false;
     hostList = null;
@@ -133,11 +132,9 @@ EsiProcessor.prototype = {
 
             // FIXME: instantiate the prefs service, then fetch the latest data.
             // TODO: Should I try to ignore this call if the current object is what triggered the update?
-            Components.utils.reportError("Prefs were updated somewhere. New prefs name: " + aData + " and value: " + aSubject.getCharPref(aData) );
 
             if ( aData == "hostlist" ) { 
                 this.hostList = this._sanitizeHostList( aSubject.getCharPref(aData).split("\n", 25) );
-                Components.utils.reportError("hostlist now: " + this.hostList);
 
             } else if ( aData == "enabled" ) {
 
@@ -243,7 +240,6 @@ EsiProcessor.prototype = {
         // FIXME: Update the pattern to ignore leading and trailing spaces. AFAIK, JS doesn't have a trim() method.
         // FIXME: If possible, reject host entries that include an underscore, which is included in \w.
 
-        Components.utils.reportError("in host list length: " + dirtyHostList.length + " and list: " + dirtyHostList);
         for ( var hl = 0; hl < dirtyHostList.length; hl++)
         {
             if ( dirtyHostList[hl] == null || dirtyHostList[hl].length == 0  )  continue;
