@@ -34,7 +34,7 @@
       accesskey="E"
       insertafter="appmenu_addons">
       <menupopup>
-        <menuitem id="esi_processor-enabledisable"
+        <menuitem id="esi_processor-enabledisable-2"
           label="Enable"
           accesskey="E"
           type="checkbox"

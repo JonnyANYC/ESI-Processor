@@ -254,6 +254,7 @@ EsiProcessorStreamDecorator.prototype = {
 
             // TODO: If the ESI spec can't send cookies, then try to disable them in the request.
             // Use req.sendCredentials = false if it works, or maybe a channel flag.
+            // One possible cookie-blocking solution: https://developer.mozilla.org/en-US/docs/Creating_Sandboxed_HTTP_Connections
             // TODO: Consider adding a user option to enable browser caching of ESI content.
 */
             // FIXME: create an extension config param for security level.

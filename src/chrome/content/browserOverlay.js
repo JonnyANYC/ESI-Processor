@@ -1,22 +1,32 @@
 var EsiProcessorOverlay = {
 
     enabledisable: function( event ) {
-        // FIXME: Only updates the current window!
-        // Consider removing this menu option if it's not super-easy to update the menu automatically in all windows.
         // TODO: Define constants somewhere for the three enabled states.
         var enabled = Application.prefs.get("extensions.esi_processor.enabled").value;
         if ( enabled == "off" ) { 
-            // TODO: Extract method.
             Application.prefs.setValue("extensions.esi_processor.enabled", "session");
-            var menuItem = event.target;
-            menuItem.setAttribute("checked", "true");
+            this._toggleMenus( true );
         } else { 
             Application.prefs.setValue("extensions.esi_processor.enabled", "off");
-            var menuItem = event.target;
-            menuItem.setAttribute("checked", "false");
+            this._toggleMenus( false );
         }        
     },
 
+
+    _toggleMenus: function( enable ) {
+
+        var wm = Components.classes["@mozilla.org/appshell/window-mediator;1"]
+            .getService(Components.interfaces.nsIWindowMediator);
+        var enumerator = wm.getEnumerator("navigator:browser");
+
+        while(enumerator.hasMoreElements()) {
+            var win = enumerator.getNext();
+            var menuItem1 = win.document.getElementById("esi_processor-enabledisable");
+            menuItem1.setAttribute("checked", enable? "true" : "false");
+            var menuItem2 = win.document.getElementById("esi_processor-enabledisable-2");
+            menuItem2.setAttribute("checked", enable? "true" : "false");
+        }
+    },
 
     configure: function( event ) {
 

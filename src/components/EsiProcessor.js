@@ -20,6 +20,7 @@ function EsiProcessor() {
     listening = false;
 }
 
+// irc irc.mozilla.org or irc://irc.mozilla.org/mozilla; /join #developers; /msg firebot uuid
 EsiProcessor.prototype = { 
 
     classDescription: "ESI Processor Javascript XPCOM Component",
@@ -32,7 +33,7 @@ EsiProcessor.prototype = {
 
         if ( this._initialized )  { 
             // TODO: change to a warning, or accept repeated calls to this as usual process.
-            Components.utils.reportError('WARNING: already initialized.');
+            Components.utils.reportError("WARNING: already initialized.");
             return;
         }
 
@@ -101,6 +102,7 @@ EsiProcessor.prototype = {
                 // TODO: Do I need to check for chrome:// url and skip it?
                 // TODO: Consider skipping file: requests. Or make it a config option. First test if I can make Ajax requests from a file: page.
                 // TODO: check for all other legal protocols supported by Firefox.
+                // TODO: Confirm the rqeuest is fired from a viewable browser window. See: https://developer.mozilla.org/en-US/docs/Code_snippets/Tabbed_browser#Getting_the_browser_that_fires_the_http-on-modify-request_notification
 
                 var channel = aSubject.QueryInterface(Ci.nsIHttpChannel);
 
