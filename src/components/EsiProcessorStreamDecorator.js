@@ -50,14 +50,12 @@ EsiProcessorStreamDecorator.prototype = {
                 && ( request.contentType.indexOf("text") >= 0 || request.contentType.indexOf("xml") >= 0 || request.contentType.indexOf("html") >= 0 ) 
                 || this.acceptedMimeTypes.indexOf( request.contentType ) >= 0 ) {
 
-                Components.utils.reportError("STARTING request for mime: " + request.contentType + " on URL: "+ request.name);
                 bypass = false;
                 this.requestContext.request = request;
                 this.requestContext.context = context;
                 this.originalListener.onStartRequest(request, context);
             } else {
 
-                Components.utils.reportError("Skipping request for mime: " + request.contentType + " on URL: "+ request.name);
                 bypass = true;
                 this.originalListener.onStartRequest(request, context);
             }
@@ -75,11 +73,11 @@ EsiProcessorStreamDecorator.prototype = {
                 return;
             }
 
-            if (this.requestContext.request != request)  Components.utils.reportError("request objs don't match");
-            if (this.requestContext.context != context)  Components.utils.reportError("context objs don't match");
+            if (this.requestContext.request != request)  {Components.utils.reportError("ESI Processor ERROR: request objs don't match");}
+            if (this.requestContext.context != context)  {Components.utils.reportError("ESI Processor ERROR: context objs don't match");}
             
-            if (this.requestContext.inputStream && this.requestContext.inputStream != inputStream)  
-                Components.utils.reportError("inputStream objs don't match");
+            if (this.requestContext.inputStream && this.requestContext.inputStream != inputStream) {
+                Components.utils.reportError("ESI Processor ERROR: inputStream objs don't match"); }
 
             this.requestContext.inputStream = inputStream;
 
@@ -105,7 +103,6 @@ EsiProcessorStreamDecorator.prototype = {
                 return;
             }
 
-            Components.utils.reportError("\nraw response complete. Final status code: " + statusCode);
             this.requestContext.finalStatusCode = statusCode;
 
             var responseSource = this.requestContext.receivedData.join('');
@@ -206,7 +203,6 @@ EsiProcessorStreamDecorator.prototype = {
             cursor = prevCursor;
 
             esiUrl = this.esiTagPatternSingle.exec(esiTags[i])[1];
-            Components.utils.reportError("Found an ESI include at position " + cursor + " with tag " + esiTags[i] + " and tag components " + esiUrl);
 
             // TODO Do some sanity checking on the URL ((/https:/// only, etc.))
             // COMPAT: Gecko 16+  See: https://developer.mozilla.org/en-US/docs/DOM/XMLHttpRequest/Using_XMLHttpRequest#Using_XMLHttpRequest_from_JavaScript_modules_.2F_XPCOM_components

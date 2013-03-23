@@ -1,4 +1,5 @@
 content   esi_processor              chrome/content/
+locale    esi_processor  en-US       locale/en-US/
 skin      esi_processor  classic/1.0 chrome/skin/
 resource  esi_processor              modules/
 

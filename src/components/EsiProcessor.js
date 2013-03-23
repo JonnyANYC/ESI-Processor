@@ -115,7 +115,6 @@ EsiProcessor.prototype = {
                     // TODO Also handle some or all HTTP error codes as valid responses. But skip 301s at least.
                     // TODO Skip sensitive URLs, such as to Firefox update servers, browser XUL, etc.
                     // TODO Consider removing cookies, since they won't be set on a proper ESI processor.
-                    Components.utils.reportError("host name matched for " + channel.URI.path + " and resp status " + channel.responseStatus);
                     const EsiProcessorStreamDecorator = Components.Constructor("@angelajonhome.com/esiprocessorstreamdecorator;1");
                     var esiProcessorStreamDecorator = EsiProcessorStreamDecorator().wrappedJSObject;
                     channel.QueryInterface(Ci.nsITraceableChannel);
@@ -123,7 +122,6 @@ EsiProcessor.prototype = {
                 } 
                 // DEBUG
                 else { 
-                    Components.utils.reportError("skipping for response " + channel.responseStatus + " from URL " + channel.URI.host + channel.URI.path );
                 }
 
             } catch (e) {
@@ -178,12 +176,10 @@ EsiProcessor.prototype = {
         }
 
         // DEBUG This function apparently isn't needed to observe preferences changes. Remove this eventually.
-        if (aIID.equals(Ci.nsIPrefBranch2)) { 
-            Components.utils.reportError("Received interface query for branch2.");
-        } else if (aIID.equals(Ci.nsIPrefService)) { 
-            Components.utils.reportError("Received interface query for prefs svc.");
-        } else if (aIID.equals(Ci.nsIClassInfo)) { 
-            // No-op; this gets called once for the nsIClassInfo interface.
+        if (aIID.equals(Ci.nsIPrefBranch2) 
+            || aIID.equals(Ci.nsIPrefService) 
+            || aIID.equals(Ci.nsIClassInfo)) { 
+            // No-op
         } else { 
             Components.utils.reportError("Received unexpected interface query for :" + aIID);
         }
@@ -231,7 +227,7 @@ EsiProcessor.prototype = {
         return domain;
     },
 
-    allowedHostPattern: /^[\w-]*\.*[\w-]+\.[\w-]+$/,
+    allowedHostPattern: /^[\w-\.]*[\w-]+\.[\w-]+$/,
 
     _sanitizeHostList: function( dirtyHostList ) {
 
