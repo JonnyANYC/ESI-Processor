@@ -5,27 +5,9 @@ var EsiProcessorOverlay = {
         var enabled = Application.prefs.get("extensions.esi_processor.enabled").value;
         if ( enabled == "off" ) { 
             Application.prefs.setValue("extensions.esi_processor.enabled", "session");
-            this._toggleMenus( true );
         } else { 
             Application.prefs.setValue("extensions.esi_processor.enabled", "off");
-            this._toggleMenus( false );
         }        
-    },
-
-
-    _toggleMenus: function( enable ) {
-
-        var wm = Components.classes["@mozilla.org/appshell/window-mediator;1"]
-            .getService(Components.interfaces.nsIWindowMediator);
-        var enumerator = wm.getEnumerator("navigator:browser");
-
-        while(enumerator.hasMoreElements()) {
-            var win = enumerator.getNext();
-            var menuItem1 = win.document.getElementById("esi_processor-enabledisable");
-            menuItem1.setAttribute("checked", enable? "true" : "false");
-            var menuItem2 = win.document.getElementById("esi_processor-enabledisable-2");
-            menuItem2.setAttribute("checked", enable? "true" : "false");
-        }
     },
 
     configure: function( event ) {

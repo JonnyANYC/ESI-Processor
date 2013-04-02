@@ -24,7 +24,7 @@ function EsiProcessor() {
 EsiProcessor.prototype = { 
 
     classDescription: "ESI Processor Javascript XPCOM Component",
-    classID:          Components.ID("{12345678-1234-4321-1234-1234567890AB}"),
+    classID:          Components.ID("{df654bc7-b3b5-49af-bc6d-355841e506ad}"),
     contractID:       "@angelajonhome.com/esiprocessor;1",
 
     startup: function() {
@@ -147,6 +147,8 @@ EsiProcessor.prototype = {
 
                         os.addObserver(this, "http-on-examine-response", false);
                         this.listening = true;
+
+                        this._toggleMenus(true);
                     }
                 } else { 
 
@@ -156,6 +158,8 @@ EsiProcessor.prototype = {
 
                         observerService.removeObserver(this, "http-on-examine-response");
                         this.listening = false;
+
+                        this._toggleMenus(false);
                     }
                 }
             }
@@ -166,6 +170,22 @@ EsiProcessor.prototype = {
 
         } else {
             Components.utils.reportError("Received unexpected observer event for: " + aTopic);
+        }
+    },
+
+
+    _toggleMenus: function( enable ) {
+
+        var wm = Components.classes["@mozilla.org/appshell/window-mediator;1"]
+            .getService(Components.interfaces.nsIWindowMediator);
+        var enumerator = wm.getEnumerator("navigator:browser");
+
+        while(enumerator.hasMoreElements()) {
+            var win = enumerator.getNext();
+            var menuItem1 = win.document.getElementById("esi_processor-enabledisable");
+            menuItem1.setAttribute("checked", enable? "true" : "false");
+            var menuItem2 = win.document.getElementById("esi_processor-enabledisable-2");
+            menuItem2.setAttribute("checked", enable? "true" : "false");
         }
     },
 

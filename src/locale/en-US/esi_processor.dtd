@@ -1,0 +1,13 @@
+<!ENTITY esi_processor.menu.main.label "ESI Processor">
+<!ENTITY esi_processor.menu.main.accesskey "E">
+<!ENTITY esi_processor.menu.enable.label "Enable">
+<!ENTITY esi_processor.menu.enable.accesskey "E">
+<!ENTITY esi_processor.menu.options.label "Options...">
+<!ENTITY esi_processor.menu.options.accesskey "O">
+<!ENTITY esi_processor.config.configtab.label "ESI Processor Configuration">
+<!ENTITY esi_processor.config.configtab.hostlist.label "On which host names should ESI Processor scan for ESI tags?">
+<!ENTITY esi_processor.config.configtab.enabledisable.label "Enable / Disable:">
+<!ENTITY esi_processor.config.configtab.enabledisable.disabled "Disabled">
+<!ENTITY esi_processor.config.configtab.enabledisable.session "Enabled for this session">
+<!ENTITY esi_processor.config.configtab.enabledisable.permanent "Enabled permanently">
+<!ENTITY esi_processor.config.confighelptab.label "Click here for help">

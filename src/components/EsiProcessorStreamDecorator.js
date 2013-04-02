@@ -31,7 +31,7 @@ function EsiProcessorStreamDecorator() {
 EsiProcessorStreamDecorator.prototype = {
 
     classDescription: "ESI Processor Stream Decorator Javascript XPCOM Component",
-    classID:          Components.ID("{12345678-1234-4321-1234-1234567890AC}"),
+    classID:          Components.ID("{adc38abe-a417-4f20-8e73-c2907b30c8be}"),
     contractID:       "@angelajonhome.com/esiprocessorstreamdecorator;1",
     receivedData: null,
 

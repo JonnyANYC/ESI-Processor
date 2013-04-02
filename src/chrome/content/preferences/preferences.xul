@@ -4,10 +4,15 @@
 <!DOCTYPE prefwindow SYSTEM "chrome://esi_processor/locale/esi_processor.dtd" >
 <prefwindow id="esi_processor" 
     xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
-    xmlns:html="http://www.w3.org/1999/xhtml">
+    xmlns:html="http://www.w3.org/1999/xhtml"
+    buttons="accept,cancel,disclosure"
+    ondialogdisclosure="open('chrome://esi_processor/content/preferences/help.xul', 
+      'EsiProcessorHelp', 
+      'width=500,height=500,resizable,scrollbars,dialog,dependent'); return true;"
+    onbeforeaccept="updateToolbarState();">
 
   <prefpane id="esi_processor-configure" label="&esi_processor.config.configtab.label;"
-      helpURI="chrome://esi_processor/content/preferences/preferences-help.xul">
+      disclosureURI="chrome://esi_processor/content/preferences/help.xul">
 
     <preferences>
       <preference id="pref-hostlist" name="extensions.esi_processor.hostlist" type="string"/>
@@ -42,30 +47,16 @@
           </radiogroup>
         </hbox>
     </vbox>
-  </prefpane>
-
-  <prefpane id="esi_processor-configure-help" label="&esi_processor.config.confighelptab.label;">
-
-    <vbox>
-      <description style="width: 300px">
-          Notes on the host list:
-              <html:ul><html:li>Enter one host name per line, up to 25 host names.</html:li>
-              <html:li>Each host name entry is matched against the host name as a substring.  
-                  So for example, "cnn.com" will match "mobile.cnn.com".</html:li>
-              <html:li>All entries must include at least two blocks of text separated by a period. Therefore,
-                  top-level domains such as "uk" or ".com" are not allowed. However, "co.uk" is currently
-                  allowed. The one exception is "localhost", which is allowed.</html:li>
-              <html:li>Only ASCII letters and numbers are currently supported.</html:li>
-          </html:ul>
-          Notes on security:
-              <html:ul><html:li>Keep this extension disabled whenever not in use, to reduce the chance of 
-              unexpected ESI interpretation and to avoid any performance impact.</html:li>
-              <html:li>Use as specific a host name entry as you can. For example. use .mysite.com instead of 
-              mysite.com.</html:li>
-          </html:ul>
-      </description>
-    </vbox>
 
   </prefpane>
+
+  <script type="application/javascript">
+      function updateToolbarState() {
+        // Assume that a change was made, so the toolbar state needs to be refreshed.
+        Components.utils.reportError("prefs about to be synced to disk.");
+        Components.utils.reportError("window is:  " + window);
+        Components.utils.reportError("EsiProcessorOverlay is:  " + window.EsiProcessorOverlay);
+      }
+  </script>
 
  </prefwindow>
