@@ -8,8 +8,7 @@
     buttons="accept,cancel,disclosure"
     ondialogdisclosure="open('chrome://esi_processor/content/preferences/help.xul', 
       'EsiProcessorHelp', 
-      'width=500,height=500,resizable,scrollbars,dialog,dependent'); return true;"
-    onbeforeaccept="updateToolbarState();">
+      'width=500,height=500,resizable,scrollbars,dialog,dependent'); return true;" >
 
   <prefpane id="esi_processor-configure" label="&esi_processor.config.configtab.label;"
       disclosureURI="chrome://esi_processor/content/preferences/help.xul">
@@ -49,14 +48,5 @@
     </vbox>
 
   </prefpane>
-
-  <script type="application/javascript">
-      function updateToolbarState() {
-        // Assume that a change was made, so the toolbar state needs to be refreshed.
-        Components.utils.reportError("prefs about to be synced to disk.");
-        Components.utils.reportError("window is:  " + window);
-        Components.utils.reportError("EsiProcessorOverlay is:  " + window.EsiProcessorOverlay);
-      }
-  </script>
 
  </prefwindow>

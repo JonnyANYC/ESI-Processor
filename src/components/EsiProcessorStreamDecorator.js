@@ -1,4 +1,4 @@
-﻿/*
+/*
  *   ESI Processor Firefox Extension
  * 
  *   Copyright 2013 Jonathan Atkinson
@@ -33,6 +33,7 @@ Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
 // TODO: It might be cleaner (and maybe faster?) to implement this object as a JSM. See: https://developer.mozilla.org/en-US/docs/XUL/School_tutorial/JavaScript_Object_Management
 function EsiProcessorStreamDecorator() {
+
     this.requestContext = { 
         request: null, 
         context: null,

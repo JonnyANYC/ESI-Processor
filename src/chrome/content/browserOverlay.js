@@ -22,7 +22,7 @@ var EsiProcessorOverlay = {
     enabledisable: function( event ) {
         // TODO: Define constants somewhere for the three enabled states.
         var enabled = Application.prefs.get("extensions.esi_processor.enabled").value;
-        if ( enabled == "off" ) { 
+        if ( enabled == null || enabled == "" || enabled == "off" ) { 
             Application.prefs.setValue("extensions.esi_processor.enabled", "session");
         } else { 
             Application.prefs.setValue("extensions.esi_processor.enabled", "off");
@@ -51,3 +51,14 @@ var EsiProcessorOverlay = {
 
 };
 
+function esiProcessorOverlayLoad( event ) {
+    var enabled = Application.prefs.get("extensions.esi_processor.enabled").value;
+    if ( enabled == "permanent" || enabled == "session" ) {
+        document.getElementById("esi_processor-enabledisable").setAttribute("checked", "true");
+        document.getElementById("esi_processor-enabledisable-2").setAttribute("checked", "true");
+    }
+
+    window.removeEventListener("load", esiProcessorOverlayLoad, false); //remove listener, no longer needed
+};
+
+window.addEventListener( "load", esiProcessorOverlayLoad, false );

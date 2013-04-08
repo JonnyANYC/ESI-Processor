@@ -80,6 +80,7 @@ EsiProcessor.prototype = {
 
             os.addObserver(this, "http-on-examine-response", false);
             this.listening = true;
+            // FIXME: This won't handle any new windows that are created when the extension is enabled. maybe use overlay for this.
 
         } else if ( enabledPref != null && enabledPref == "off" ) { 
             // Do nothing.
@@ -127,6 +128,7 @@ EsiProcessor.prototype = {
 
                 if (channel.URI && channel.URI.scheme && channel.responseStatus && channel.originalURI   
                     && (channel.URI.scheme == "http" || channel.URI.scheme == "file")
+                    && (channel.notificationCallbacks || channel.loadGroup.notificationCallbacks )
                     && (channel.responseStatus != 301 && channel.responseStatus < 500)
                     && (channel.originalURI.path != "/favicon.ico") 
                     && this.isHostNameMatch( channel.URI.host ) ) { 
@@ -139,9 +141,6 @@ EsiProcessor.prototype = {
                     channel.QueryInterface(Ci.nsITraceableChannel);
                     esiProcessorStreamDecorator.originalListener = channel.setNewListener(esiProcessorStreamDecorator);
                 } 
-                // DEBUG
-                else { 
-                }
 
             } catch (e) {
                 Components.utils.reportError("\nEsiProcessor error: \n\tMessage: " + e.message + "\n\tFile: " + e.fileName + "  line: " + e.lineNumber + "\n");
