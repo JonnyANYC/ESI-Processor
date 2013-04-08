@@ -1,0 +1,8 @@
+﻿<!ENTITY esi_processor.help.help0 'Notes on the host list:'>
+<!ENTITY esi_processor.help.help1 'Enter one host name per line, up to 25 host names.'>
+<!ENTITY esi_processor.help.help2 'Each host name entry is matched against the host name as a substring. So for example, "cnn.com" will match "mobile.cnn.com".'>
+<!ENTITY esi_processor.help.help3 'All entries must include at least two blocks of text separated by a period. Therefore, top-level domains such as "uk" or ".com" are not allowed. However, "co.uk" is currently allowed. The one exception is "localhost", which is allowed.'>
+<!ENTITY esi_processor.help.help4 'Only ASCII letters and numbers are currently supported.'>
+<!ENTITY esi_processor.help.security0 'Notes on security:'>
+<!ENTITY esi_processor.help.security1 'Keep this extension disabled whenever not in use, to reduce the chance of unexpected ESI interpretation and to avoid any performance impact.'>
+<!ENTITY esi_processor.help.security2 'Use as specific a host name entry as you can. For example. use .mysite.com instead of mysite.com.'>
