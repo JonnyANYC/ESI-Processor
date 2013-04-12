@@ -59,16 +59,17 @@ EsiProcessorStreamDecorator.prototype = {
     originalListener: null,
     requestContext: null,
     bypass: null,
-    acceptedMimeTypes: ["beavis"], // FIXME: add as a config param.
     decoratedPage: null,
     completedRequests: null,
 
     onStartRequest: function(request, context) {
         try {
 
+            // TODO: Consider expanding the list of accepted MIME types as a config param.
             if ( request.contentType 
-                && ( request.contentType.indexOf("text") >= 0 || request.contentType.indexOf("xml") >= 0 || request.contentType.indexOf("html") >= 0 ) 
-                || this.acceptedMimeTypes.indexOf( request.contentType ) >= 0 ) {
+                && ( request.contentType.indexOf("text") >= 0 
+                  || request.contentType.indexOf("xml") >= 0 
+                  || request.contentType.indexOf("html") >= 0 ) ) {
 
                 bypass = false;
                 this.requestContext.request = request;
@@ -137,7 +138,6 @@ EsiProcessorStreamDecorator.prototype = {
     sendDecoratedResponse: function(page, esiBlocks) {
             try {
                 var storageStream = CCIN("@mozilla.org/storagestream;1", "nsIStorageStream");
-                // FIXME: Why do I run out of space unless I init the stream to 3x length? Multi-byte characters?
                 storageStream.init(8192, page.length, null);
 
                 var binaryOutputStream = CCIN("@mozilla.org/binaryoutputstream;1",
@@ -232,9 +232,9 @@ EsiProcessorStreamDecorator.prototype = {
             esiRequests[i].timeout = 60000; // TODO Make this a config param.
             esiRequests[i].open('GET', esiUrl, true);
 
-            // FIXME: Check the usefulness of this feature, and then cast vendorSub to a float.
+            // FIXME: Handle errors explicitly.
             /*
-            if ( true || window.navigator.vendorSub >= 3.5 )
+            if ( window.navigator.vendorSub >= 3.5 )
             {
                 // Check if req.onerror = onError works for FF v3.0 and 3.1, or maybe the below works w/ FF3.1
                 esiRequest.addEventListener("error", function( event ) {
@@ -261,19 +261,12 @@ EsiProcessorStreamDecorator.prototype = {
 
             esiRequests[i].send(null);
 
-/*
-            // FIXME: Fix the DOM and then bail if there's no src attribute.
-            // TODO: Try using netscape.security.PrivilegeManager.enablePrivilege("UniversalBrowserRead")
-            // This should work for FF v3 and 4.
             // TODO: Check the spec to determine if esi src attributes can be relative URLs. I think they can.
-            esiRequest.channel.loadFlags |= Components.interfaces.nsIRequest.LOAD_BYPASS_CACHE;
 
             // TODO: If the ESI spec can't send cookies, then try to disable them in the request.
-            // Use req.sendCredentials = false if it works, or maybe a channel flag.
             // One possible cookie-blocking solution: https://developer.mozilla.org/en-US/docs/Creating_Sandboxed_HTTP_Connections
-            // TODO: Consider adding a user option to enable browser caching of ESI content.
-*/
-            // FIXME: create an extension config param for security level.
+            // Use req.sendCredentials = false if it works, or maybe a channel flag somehow.
+            // esiRequest.channel.loadFlags |= Components.interfaces.nsIRequest.LOAD_BYPASS_CACHE;
         }
 
         this.decoratedPage[this.decoratedPage.length-1] = page.substr(cursor);

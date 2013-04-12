@@ -80,12 +80,9 @@ EsiProcessor.prototype = {
 
             os.addObserver(this, "http-on-examine-response", false);
             this.listening = true;
-            // FIXME: This won't handle any new windows that are created when the extension is enabled. maybe use overlay for this.
 
-        } else if ( enabledPref != null && enabledPref == "off" ) { 
-            // Do nothing.
-        } else { 
-            // Handle cases where the pref is set to "session", or anything else, or is null.
+        } else if ( enabledPref == null || enabledPref != "off" ) { 
+            // If we're not explicitly set to permanent, then explicitly set us to off.
             this.prefService.setCharPref("enabled", "off");
         }
 
@@ -116,25 +113,24 @@ EsiProcessor.prototype = {
 
         if (aTopic == "http-on-examine-response") {
 
+            // FIXME: Extract method!!
+
             try {
-                // FIXME check for host match here
-                // FIXME need to identify cached pages ([xpconnect wrapped nsIURI]) and process them too
-                // TODO: Do I need to check for chrome:// url and skip it?
+                // TODO: need to identify cached pages ([xpconnect wrapped nsIURI]) and process them too.
+                // But I'm not sure they trigger http listeners like this.
                 // TODO: Consider skipping file: requests. Or make it a config option. First test if I can make Ajax requests from a file: page.
-                // TODO: check for all other legal protocols supported by Firefox.
-                // TODO: Confirm the rqeuest is fired from a viewable browser window. See: https://developer.mozilla.org/en-US/docs/Code_snippets/Tabbed_browser#Getting_the_browser_that_fires_the_http-on-modify-request_notification
 
                 var channel = aSubject.QueryInterface(Ci.nsIHttpChannel);
 
                 if (channel.URI && channel.URI.scheme && channel.responseStatus && channel.originalURI   
                     && (channel.URI.scheme == "http" || channel.URI.scheme == "file")
+                    // Skip system-generated requests. See https://developer.mozilla.org/en-US/docs/Code_snippets/Tabbed_browser#Getting_the_browser_that_fires_the_http-on-modify-request_notification
                     && (channel.notificationCallbacks || channel.loadGroup.notificationCallbacks )
                     && (channel.responseStatus != 301 && channel.responseStatus < 500)
                     && (channel.originalURI.path != "/favicon.ico") 
                     && this.isHostNameMatch( channel.URI.host ) ) { 
 
                     // TODO Also handle some or all HTTP error codes as valid responses. But skip 301s at least.
-                    // TODO Skip sensitive URLs, such as to Firefox update servers, browser XUL, etc.
                     // TODO Consider removing cookies, since they won't be set on a proper ESI processor.
                     const EsiProcessorStreamDecorator = Components.Constructor("@angelajonhome.com/esiprocessorstreamdecorator;1");
                     var esiProcessorStreamDecorator = EsiProcessorStreamDecorator().wrappedJSObject;
@@ -148,13 +144,13 @@ EsiProcessor.prototype = {
 
         } else if (aTopic == "nsPref:changed") {
 
-            // FIXME: instantiate the prefs service, then fetch the latest data.
-            // TODO: Should I try to ignore this call if the current object is what triggered the update?
 
             if ( aData == "hostlist" ) { 
                 this.hostList = this._sanitizeHostList( aSubject.getCharPref(aData).split("\n", 25) );
 
             } else if ( aData == "enabled" ) {
+
+                // FIXME: For the love of God, extract method(s)!!!
 
                 if ( aSubject.getCharPref(aData) == "permanent" 
                     || aSubject.getCharPref(aData) == "session" ) { 
@@ -274,7 +270,7 @@ EsiProcessor.prototype = {
         // FIXME: This needs to support Unicode host names.
         // FIXME: Reject host lists that are dangerously short, such as e.com, etc.
         // FIXME: Update the pattern to ignore leading and trailing spaces. AFAIK, JS doesn't have a trim() method.
-        // FIXME: If possible, reject host entries that include an underscore, which is included in \w.
+        // TODO: If possible, reject host entries that include an underscore, which is included in \w.
 
         for ( var hl = 0; hl < dirtyHostList.length; hl++)
         {

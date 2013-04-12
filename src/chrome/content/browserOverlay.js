@@ -51,14 +51,16 @@ var EsiProcessorOverlay = {
 
 };
 
-function esiProcessorOverlayLoad( event ) {
-    var enabled = Application.prefs.get("extensions.esi_processor.enabled").value;
-    if ( enabled == "permanent" || enabled == "session" ) {
-        document.getElementById("esi_processor-enabledisable").setAttribute("checked", "true");
-        document.getElementById("esi_processor-enabledisable-2").setAttribute("checked", "true");
-    }
+(function() { 
+    function esiProcessorOverlayLoad( event ) {
+        var enabled = Application.prefs.get("extensions.esi_processor.enabled").value;
+        if ( enabled == "permanent" || enabled == "session" ) {
+            document.getElementById("esi_processor-enabledisable").setAttribute("checked", "true");
+            document.getElementById("esi_processor-enabledisable-2").setAttribute("checked", "true");
+        }
 
-    window.removeEventListener("load", esiProcessorOverlayLoad, false); //remove listener, no longer needed
-};
+        window.removeEventListener("load", esiProcessorOverlayLoad, false); //remove listener, no longer needed
+    };
 
-window.addEventListener( "load", esiProcessorOverlayLoad, false );
+    window.addEventListener( "load", esiProcessorOverlayLoad, false );
+})();
