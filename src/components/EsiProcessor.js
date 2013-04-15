@@ -39,7 +39,6 @@ function EsiProcessor() {
     listening = false;
 }
 
-// irc irc.mozilla.org or irc://irc.mozilla.org/mozilla; /join #developers; /msg firebot uuid
 EsiProcessor.prototype = { 
 
     classDescription: "ESI Processor Javascript XPCOM Component",
@@ -47,8 +46,6 @@ EsiProcessor.prototype = {
     contractID:       "@angelajonhome.com/esiprocessor;1",
 
     startup: function() {
-
-        // TODO Consider moving all of this to the constuctor, as long as the observers are available at that point.
 
         if ( this._initialized )  { 
             // TODO: change to a warning, or accept repeated calls to this as usual process.
@@ -69,6 +66,7 @@ EsiProcessor.prototype = {
             this.hostList = this._sanitizeHostList( hostListPref.split("\n", 25) );
         } else
         {
+            this.prefService.setCharPref("hostlist", "");
             this.hostList = new Array(0);
         }
 

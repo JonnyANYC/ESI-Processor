@@ -193,7 +193,8 @@ EsiProcessorStreamDecorator.prototype = {
         throw Components.results.NS_NOINTERFACE;
     },
 
-    // TODO Needs to be UTF-8 compatible. Also needs to support other supported punctuation in URLs.
+    // TODO Needs to be UTF-8 compatible.
+    // FIXME: Needs to support all other valid punctuation in URLs.
     esiTagPatternAll: /\<esi:include src="([\w\d\.:\/\-,]+)"[\w\s="]?\/\>/ig,
     esiTagPatternSingle: /\<esi:include src="([\w\d\.:\/\-,]+)"[\w\s="]?\/\>/i,
 
@@ -207,6 +208,9 @@ EsiProcessorStreamDecorator.prototype = {
             this.sendDecoratedResponse(page, 0);
             return;
         }
+
+        // FIXME: Limit the number of concurrent requests.
+        // How best to do this? Perhaps for now allow excessive ones to be unprocessed or synchronous?
 
         this.decoratedPage = new Array( (esiTags.length *2) +1 );
         this.completedRequests = new Array(esiTags.length);
@@ -233,6 +237,8 @@ EsiProcessorStreamDecorator.prototype = {
             esiRequests[i].open('GET', esiUrl, true);
 
             // FIXME: Handle errors explicitly.
+            // FIXME: set a timeout.
+
             /*
             if ( window.navigator.vendorSub >= 3.5 )
             {
