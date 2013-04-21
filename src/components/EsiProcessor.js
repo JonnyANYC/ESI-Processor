@@ -58,8 +58,6 @@ EsiProcessor.prototype = {
             .getService(Ci.nsIPrefService)
             .getBranch("extensions.esi_processor."); // do we need the branch yet?
 
-        // FIXME The following line throws an error if the pref doesn't exist. 
-        // Do I really need to wrap this in a try...catch block?
         var hostListPref = this.prefService.getCharPref("hostlist");
         if ( hostListPref != null && hostListPref.length > 0 )
         {

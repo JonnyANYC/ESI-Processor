@@ -44,6 +44,7 @@ function EsiProcessorStreamDecorator() {
 
     decoratedPage = [];
     completedRequests = [];
+    errorRequests = 0;
 
     this.wrappedJSObject = this;
 };
@@ -61,6 +62,7 @@ EsiProcessorStreamDecorator.prototype = {
     bypass: null,
     decoratedPage: null,
     completedRequests: null,
+    errorRequests: null,
 
     onStartRequest: function(request, context) {
         try {
@@ -172,11 +174,22 @@ EsiProcessorStreamDecorator.prototype = {
 
             if ( esiBlocks ) {
 
+                // TODO: Localize the alert text.
+                // TODO: Change the icon to alerticon-info-negative.png if any requests failed.
+                // TODO: Consider using alerticon-error.png if there was an error processing the ESI tag.
+                // TODO: Find a better icon.
+                var alertMessage = esiBlocks + " ESI include(s) were processed on this page.";
+                var alertIcon = "chrome://mozapps/skin/extensions/alerticon-info-positive.png";
+                if ( this.errorRequests ) {
+                    alertMessage += " " + this.errorRequests + " of these ESI includes returned an error.";
+                    alertIcon = "chrome://mozapps/skin/extensions/alerticon-info-negative.png";
+                } 
+
                 var alertsService = Cc["@mozilla.org/alerts-service;1"].getService(Ci.nsIAlertsService);
                 alertsService.showAlertNotification(
-                    "chrome://mozapps/skin/extensions/alerticon-info-positive.png", // TODO find a better icon
+                    alertIcon,
                     "ESI Processor notification", 
-                    esiBlocks + " ESI include(s) were processed on this page.", 
+                    alertMessage, 
                     false, 
                     null,
                     null,
@@ -195,8 +208,8 @@ EsiProcessorStreamDecorator.prototype = {
 
     // TODO Needs to be UTF-8 compatible.
     // FIXME: Needs to support all other valid punctuation in URLs.
-    esiTagPatternAll: /\<esi:include src="([\w\d\.:\/\-,]+)"[\w\s="]?\/\>/ig,
-    esiTagPatternSingle: /\<esi:include src="([\w\d\.:\/\-,]+)"[\w\s="]?\/\>/i,
+    esiTagPatternAll: /\<esi:include src="(https?:\/\/[\w\d\.:\/\-,]+)"[\w\s="]?\/\>/ig,
+    esiTagPatternSingle: /\<esi:include src="(https?:\/\/[\w\d\.:\/\-,]+)"[\w\s="]?\/\>/i,
 
     processEsiBlocks: function(page) {
         // TODO: Extract method!!!
@@ -228,7 +241,6 @@ EsiProcessorStreamDecorator.prototype = {
 
             esiUrl = this.esiTagPatternSingle.exec(esiTags[i])[1];
 
-            // TODO Do some sanity checking on the URL ((/https:/// only, etc.))
             // COMPAT: Gecko 16+  See: https://developer.mozilla.org/en-US/docs/DOM/XMLHttpRequest/Using_XMLHttpRequest#Using_XMLHttpRequest_from_JavaScript_modules_.2F_XPCOM_components
             const XMLHttpRequest = Components.Constructor("@mozilla.org/xmlextras/xmlhttprequest;1");
             esiRequests[i] = XMLHttpRequest();
@@ -259,7 +271,9 @@ EsiProcessorStreamDecorator.prototype = {
                 var esiContent = this.responseText;
                 if(this.status != 200)
                 {
-                    esiContent = 'ESI error for request' + j + ': ' + this.statusText;
+                    esiContent = "ESI timeout or error for request " + j + 
+                        ". Error text, if any: {" + this.statusText + "}";
+                    that.errorRequests++;
                 }
 
                 that.handleEsiResponse(j, esiContent);
