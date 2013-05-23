@@ -132,7 +132,7 @@ EsiProcessor.prototype = {
                     var esiProcessorStreamDecorator = EsiProcessorStreamDecorator().wrappedJSObject;
                     channel.QueryInterface(Ci.nsITraceableChannel);
                     esiProcessorStreamDecorator.originalListener = channel.setNewListener(esiProcessorStreamDecorator);
-                } 
+                }
 
             } catch (e) {
                 Components.utils.reportError("\nEsiProcessor error: \n\tMessage: " + e.message + "\n\tFile: " + e.fileName + "  line: " + e.lineNumber + "\n");
@@ -236,6 +236,7 @@ EsiProcessor.prototype = {
 
     urlHostMatchPattern: /^http:\/\/([\w\.-]+)/i,
 
+    // FIXME: Is this function unused? If so, remove it.
     extractHostNameFromUrl: function( url ) {
         var urlHostMatch = url.match( this.urlHostMatchPattern );
         return urlHostMatch ? urlHostMatch[1] : null;
@@ -243,6 +244,7 @@ EsiProcessor.prototype = {
 
     urlDomainMatchPattern: /^http:\/\/([\w-]\.)+([\w-])/i,
 
+    // FIXME: Is this function unused? If so, remove it.
     extractDomainFromUrl: function( url ) {
         var urlDomainMatch = url.match( this.urlDomainMatchPattern );
         

@@ -42,9 +42,13 @@ function EsiProcessorStreamDecorator() {
         finalStatusCode: null
     };
 
-    decoratedPage = [];
-    completedRequests = [];
-    errorRequests = 0;
+    this.decoratedPage = [];
+    this.completedRequests = [];
+    this.errorRequests = 0;
+
+    this.idnum = Math.random();
+
+    this.httpRequest = Components.Constructor("@mozilla.org/xmlextras/xmlhttprequest;1");
 
     this.wrappedJSObject = this;
 };
@@ -63,6 +67,8 @@ EsiProcessorStreamDecorator.prototype = {
     decoratedPage: null,
     completedRequests: null,
     errorRequests: null,
+
+    httpRequest: null,
 
     onStartRequest: function(request, context) {
         try {
@@ -208,11 +214,11 @@ EsiProcessorStreamDecorator.prototype = {
 
     // TODO Needs to be UTF-8 compatible.
     // FIXME: Needs to support all other valid punctuation in URLs.
+    // FIXME: Need to support relative URLs, but still filter for bad URLs, such as javascript: or chrome:.
     esiTagPatternAll: /\<esi:include src="(https?:\/\/[\w\d\.:\/\-,]+)"[\w\s="]?\/\>/ig,
     esiTagPatternSingle: /\<esi:include src="(https?:\/\/[\w\d\.:\/\-,]+)"[\w\s="]?\/\>/i,
 
     processEsiBlocks: function(page) {
-        // TODO: Extract method!!!
 
         var esiTags = page.match( this.esiTagPatternAll );
 
@@ -224,16 +230,16 @@ EsiProcessorStreamDecorator.prototype = {
 
         // FIXME: Limit the number of concurrent requests.
         // How best to do this? Perhaps for now allow excessive ones to be unprocessed or synchronous?
+        // TODO: Extract method!!!
 
         this.decoratedPage = new Array( (esiTags.length *2) +1 );
         this.completedRequests = new Array(esiTags.length);
 
-        var esiRequests = new Array(esiTags.length);
         var esiUrl;
         var cursor = 0;
         var prevCursor = 0;
         for ( var i=0; i < esiTags.length; i++ ) {
-            
+
             cursor = page.indexOf( esiTags[i], cursor );
             this.decoratedPage[i*2] = page.substring(prevCursor, cursor);
             prevCursor = cursor + esiTags[i].length;
@@ -241,16 +247,70 @@ EsiProcessorStreamDecorator.prototype = {
 
             esiUrl = this.esiTagPatternSingle.exec(esiTags[i])[1];
 
+            // NEXT: Test if objParameters do anything in this context.
             // COMPAT: Gecko 16+  See: https://developer.mozilla.org/en-US/docs/DOM/XMLHttpRequest/Using_XMLHttpRequest#Using_XMLHttpRequest_from_JavaScript_modules_.2F_XPCOM_components
-            const XMLHttpRequest = Components.Constructor("@mozilla.org/xmlextras/xmlhttprequest;1");
-            esiRequests[i] = XMLHttpRequest();
+            let esiRequest = this.httpRequest( {mozAnon: true, mozSystem: true, } );
             //COMPAT: Gecko 12+
-            esiRequests[i].timeout = 60000; // TODO Make this a config param.
-            esiRequests[i].open('GET', esiUrl, true);
+            esiRequest.timeout = 60000; // TODO Make this a config param.
 
-            // FIXME: Handle errors explicitly.
-            // FIXME: set a timeout.
+            // NEXT: Fix the async bottleneck
+            // Current theory: Firefox only allows one concurrent request per host name. check if this is the case
+            // for unprivelidged Ajax as well. or check the docs.
+            // Prev theory: the requests are getting held up by soem shared resource. 
+            // Also, the requests for the .html esi files arne't showing up in the log. are they handled by browser cache?
+            // A bad option:Count requests by host, and synchronize every third per host? That's messy, and not phase 1.
+            // Just get it to work sustainably. If time permits, try this in client-side code, outside of a component, etc.
 
+            // TODO: Is there an easy way to 
+            // prevent recursive scanning of requests, such as by adding something to the XHR object that supporesses 
+            // the esi scanning? if so, that could be an interim solution. I don't want to add a param to the rqeuest
+            // since I souldnt touch the request at all.
+
+            if ( (i%3 == 2) && (i != esiTags.length-1) ) { 
+
+                // Avoid spawning too many concurrent requests by sending every third request synchronously.
+                // But don't do that on the last request, because we want this function to complete first.
+                esiRequest.open("GET", esiUrl, false);
+                esiRequest.send();
+
+                let esiContent = esiRequest.responseText;
+                if( esiRequest.status != 200 )
+                {
+                    esiContent = "ESI timeout or error for request " + i + 
+                        ". Error text, if any: {" + esiRequest.statusText + "} {" +
+                        esiRequest.responseText + "}";
+                    this.errorRequests++;
+                }
+
+                this.handleEsiResponse(i, esiContent);
+
+            } else {
+
+                // Send most requests asynchronously.
+                esiRequest.open("GET", esiUrl, true);
+
+                let j = i;
+                let that = this;
+                esiRequest.onreadystatechange = function( event ) {
+
+                    if (this.readyState != 4)  { return; }
+
+                    var esiContent = this.responseText;
+                    if( this.status != 200 )
+                    {
+                        esiContent = "ESI timeout or error for request " + j + 
+                            ". Status code: " + this.status + ". Error text, if any: {" + 
+                            this.statusText + "} {" + this.responseText + "}";
+                        that.errorRequests++;
+                    }
+
+                    that.handleEsiResponse(j, esiContent);
+                }
+
+                esiRequest.send(null);
+            }
+
+            // TODO: Is the check of the status code adequate? Or do I need to handle errors explicitly?
             /*
             if ( window.navigator.vendorSub >= 3.5 )
             {
@@ -261,27 +321,6 @@ EsiProcessorStreamDecorator.prototype = {
                     false);
             }
             */
-
-            let j = i;
-            let that = this;
-            esiRequests[i].onreadystatechange = function( event ) {
-
-                if (this.readyState != 4)  { return; }
-
-                var esiContent = this.responseText;
-                if(this.status != 200)
-                {
-                    esiContent = "ESI timeout or error for request " + j + 
-                        ". Error text, if any: {" + this.statusText + "}";
-                    that.errorRequests++;
-                }
-
-                that.handleEsiResponse(j, esiContent);
-            }
-
-            esiRequests[i].send(null);
-
-            // TODO: Check the spec to determine if esi src attributes can be relative URLs. I think they can.
 
             // TODO: If the ESI spec can't send cookies, then try to disable them in the request.
             // One possible cookie-blocking solution: https://developer.mozilla.org/en-US/docs/Creating_Sandboxed_HTTP_Connections
