@@ -53,6 +53,7 @@ var EsiProcessorOverlay = {
 
 (function() { 
     function esiProcessorOverlayLoad( event ) {
+
         var enabled = Application.prefs.get("extensions.esi_processor.enabled").value;
         if ( enabled == "permanent" || enabled == "session" ) {
             document.getElementById("esi_processor-enabledisable").setAttribute("checked", "true");

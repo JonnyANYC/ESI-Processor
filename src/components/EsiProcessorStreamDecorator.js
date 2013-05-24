@@ -263,10 +263,9 @@ EsiProcessorStreamDecorator.prototype = {
 
             // TODO: Is there an easy way to 
             // prevent recursive scanning of requests, such as by adding something to the XHR object that supporesses 
-            // the esi scanning? if so, that could be an interim solution. I don't want to add a param to the rqeuest
-            // since I souldnt touch the request at all.
+            // the esi scanning? perhaps adding an "ESI-Processor: requestor" header will suffice.
 
-            if ( (i%3 == 2) && (i != esiTags.length-1) ) { 
+            if ( (i%5 == 4) && (i != esiTags.length-1) ) { 
 
                 // Avoid spawning too many concurrent requests by sending every third request synchronously.
                 // But don't do that on the last request, because we want this function to complete first.
@@ -277,8 +276,8 @@ EsiProcessorStreamDecorator.prototype = {
                 if( esiRequest.status != 200 )
                 {
                     esiContent = "ESI timeout or error for request " + i + 
-                        ". Error text, if any: {" + esiRequest.statusText + "} {" +
-                        esiRequest.responseText + "}";
+                        ". Status code: " + esiRequest.status + ". Error text, if any: {" + 
+                        esiRequest.statusText + "} {" + esiRequest.responseText + "}";
                     this.errorRequests++;
                 }
 
