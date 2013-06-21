@@ -181,7 +181,6 @@ EsiProcessorStreamDecorator.prototype = {
             if ( esiBlocks ) {
 
                 // TODO: Localize the alert text.
-                // TODO: Change the icon to alerticon-info-negative.png if any requests failed.
                 // TODO: Consider using alerticon-error.png if there was an error processing the ESI tag.
                 // TODO: Find a better icon.
                 var alertMessage = esiBlocks + " ESI include(s) were processed on this page.";
@@ -265,9 +264,9 @@ EsiProcessorStreamDecorator.prototype = {
             // prevent recursive scanning of requests, such as by adding something to the XHR object that supporesses 
             // the esi scanning? perhaps adding an "ESI-Processor: requestor" header will suffice.
 
-            if ( (i%5 == 4) && (i != esiTags.length-1) ) { 
+            if ( (i%10 == 9) && (i != esiTags.length-1) ) { 
 
-                // Avoid spawning too many concurrent requests by sending every third request synchronously.
+                // Avoid spawning too many concurrent requests by sending every tenth request synchronously.
                 // But don't do that on the last request, because we want this function to complete first.
                 esiRequest.open("GET", esiUrl, false);
                 esiRequest.send();

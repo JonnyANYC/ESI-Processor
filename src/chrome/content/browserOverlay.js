@@ -60,7 +60,8 @@ var EsiProcessorOverlay = {
             document.getElementById("esi_processor-enabledisable-2").setAttribute("checked", "true");
         }
 
-        window.removeEventListener("load", esiProcessorOverlayLoad, false); //remove listener, no longer needed
+        // The listener is only needed to set the initial menu state at window startup.
+        window.removeEventListener("load", esiProcessorOverlayLoad, false);
     };
 
     window.addEventListener( "load", esiProcessorOverlayLoad, false );

@@ -78,11 +78,11 @@ EsiProcessor.prototype = {
             this.listening = true;
 
         } else if ( enabledPref == null || enabledPref != "off" ) { 
-            // If we're not explicitly set to permanent, then explicitly set us to off.
+            // If ESI processing isn't enabled permanently at startup, then explicitly disable it.
             this.prefService.setCharPref("enabled", "off");
         }
 
-        // Gecko prior to v13 requires the use of nsIPrefBranch2.
+        // COMPAT: Gecko prior to v13 requires the use of nsIPrefBranch2.
         if (!("addObserver" in this.prefService)) { 
             this.prefService.QueryInterface(Ci.nsIPrefBranch2);
         }
@@ -234,31 +234,6 @@ EsiProcessor.prototype = {
     }, 
 
 
-    urlHostMatchPattern: /^http:\/\/([\w\.-]+)/i,
-
-    // FIXME: Is this function unused? If so, remove it.
-    extractHostNameFromUrl: function( url ) {
-        var urlHostMatch = url.match( this.urlHostMatchPattern );
-        return urlHostMatch ? urlHostMatch[1] : null;
-    },
-
-    urlDomainMatchPattern: /^http:\/\/([\w-]\.)+([\w-])/i,
-
-    // FIXME: Is this function unused? If so, remove it.
-    extractDomainFromUrl: function( url ) {
-        var urlDomainMatch = url.match( this.urlDomainMatchPattern );
-        
-        var domain = null;
-        
-        var matchLength = urlDomainMatch.length;
-        
-        if ( matchLength )
-        {
-            domain = urlDomainMatch[ matchLength-1 ] + urlDomainMatch[ matchLength ] 
-        }
-        return domain;
-    },
-
     allowedHostPattern: /^[\w-\.]*[\w-]+\.[\w-]+$/,
 
     _sanitizeHostList: function( dirtyHostList ) {
@@ -268,7 +243,7 @@ EsiProcessor.prototype = {
         // FIXME: This needs to support Unicode host names.
         // FIXME: Reject host lists that are dangerously short, such as e.com, etc.
         // FIXME: Update the pattern to ignore leading and trailing spaces. AFAIK, JS doesn't have a trim() method.
-        // TODO: If possible, reject host entries that include an underscore, which is included in \w.
+        // TODO: Reject host entries that include an underscore, which is included in \w.
 
         for ( var hl = 0; hl < dirtyHostList.length; hl++)
         {
