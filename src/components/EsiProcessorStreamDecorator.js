@@ -46,9 +46,7 @@ function EsiProcessorStreamDecorator() {
     this.completedRequests = [];
     this.errorRequests = 0;
 
-    this.idnum = Math.random();
-
-    this.httpRequest = Components.Constructor("@mozilla.org/xmlextras/xmlhttprequest;1");
+    this.httpRequestCostructor = Components.Constructor("@mozilla.org/xmlextras/xmlhttprequest;1");
 
     this.wrappedJSObject = this;
 };
@@ -68,7 +66,7 @@ EsiProcessorStreamDecorator.prototype = {
     completedRequests: null,
     errorRequests: null,
 
-    httpRequest: null,
+    httpRequestCostructor: null,
 
     onStartRequest: function(request, context) {
         try {
@@ -248,7 +246,7 @@ EsiProcessorStreamDecorator.prototype = {
 
             // NEXT: Test if objParameters do anything in this context.
             // COMPAT: Gecko 16+  See: https://developer.mozilla.org/en-US/docs/DOM/XMLHttpRequest/Using_XMLHttpRequest#Using_XMLHttpRequest_from_JavaScript_modules_.2F_XPCOM_components
-            let esiRequest = this.httpRequest( {mozAnon: true, mozSystem: true, } );
+            let esiRequest = this.httpRequestCostructor( {mozAnon: true, mozSystem: true, } );
             //COMPAT: Gecko 12+
             esiRequest.timeout = 60000; // TODO Make this a config param.
 

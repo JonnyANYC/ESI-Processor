@@ -34,7 +34,6 @@ function EsiProcessor() {
 
     _initialized = false;
     hostList = null;
-    numTimesCalled = 0;
     prefService = null;
     listening = false;
 }
@@ -109,70 +108,11 @@ EsiProcessor.prototype = {
 
         if (aTopic == "http-on-examine-response") {
 
-            // FIXME: Extract method!!
-
-            try {
-                // TODO: need to identify cached pages ([xpconnect wrapped nsIURI]) and process them too.
-                // But I'm not sure they trigger http listeners like this.
-                // TODO: Consider skipping file: requests. Or make it a config option. First test if I can make Ajax requests from a file: page.
-
-                var channel = aSubject.QueryInterface(Ci.nsIHttpChannel);
-
-                if (channel.URI && channel.URI.scheme && channel.responseStatus && channel.originalURI   
-                    && (channel.URI.scheme == "http" || channel.URI.scheme == "file")
-                    // Skip system-generated requests. See https://developer.mozilla.org/en-US/docs/Code_snippets/Tabbed_browser#Getting_the_browser_that_fires_the_http-on-modify-request_notification
-                    && (channel.notificationCallbacks || channel.loadGroup.notificationCallbacks )
-                    && (channel.responseStatus != 301 && channel.responseStatus < 500)
-                    && (channel.originalURI.path != "/favicon.ico") 
-                    && this.isHostNameMatch( channel.URI.host ) ) { 
-
-                    // TODO Also handle some or all HTTP error codes as valid responses. But skip 301s at least.
-                    // TODO Consider removing cookies, since they won't be set on a proper ESI processor.
-                    const EsiProcessorStreamDecorator = Components.Constructor("@angelajonhome.com/esiprocessorstreamdecorator;1");
-                    var esiProcessorStreamDecorator = EsiProcessorStreamDecorator().wrappedJSObject;
-                    channel.QueryInterface(Ci.nsITraceableChannel);
-                    esiProcessorStreamDecorator.originalListener = channel.setNewListener(esiProcessorStreamDecorator);
-                }
-
-            } catch (e) {
-                Components.utils.reportError("\nEsiProcessor error: \n\tMessage: " + e.message + "\n\tFile: " + e.fileName + "  line: " + e.lineNumber + "\n");
-            }
+            this._handleWebResponse( aSubject );
 
         } else if (aTopic == "nsPref:changed") {
 
-
-            if ( aData == "hostlist" ) { 
-                this.hostList = this._sanitizeHostList( aSubject.getCharPref(aData).split("\n", 25) );
-
-            } else if ( aData == "enabled" ) {
-
-                // FIXME: For the love of God, extract method(s)!!!
-
-                if ( aSubject.getCharPref(aData) == "permanent" 
-                    || aSubject.getCharPref(aData) == "session" ) { 
-
-                    if ( !this.listening ) { 
-                        var os = Cc["@mozilla.org/observer-service;1"]
-                            .getService(Ci.nsIObserverService);
-
-                        os.addObserver(this, "http-on-examine-response", false);
-                        this.listening = true;
-
-                        this._toggleMenus(true);
-                    }
-                } else { 
-
-                    if ( this.listening ) { 
-                        var observerService = Cc["@mozilla.org/observer-service;1"]
-                            .getService(Ci.nsIObserverService);
-
-                        observerService.removeObserver(this, "http-on-examine-response");
-                        this.listening = false;
-
-                        this._toggleMenus(false);
-                    }
-                }
-            }
+            this._handlePrefChange( aSubject, aData );
 
         } else if (aTopic == "profile-after-change") {
 
@@ -182,6 +122,76 @@ EsiProcessor.prototype = {
             Components.utils.reportError("Received unexpected observer event for: " + aTopic);
         }
     },
+
+
+    _handleWebResponse: function( aSubject ) { 
+
+        try {
+            // TODO: need to identify cached pages ([xpconnect wrapped nsIURI]) and process them too.
+            // But I'm not sure they trigger http listeners like this.
+            // TODO: Consider skipping file: requests. Or make it a config option. First test if I can make Ajax requests from a file: page.
+
+            var channel = aSubject.QueryInterface(Ci.nsIHttpChannel);
+
+            if (channel.URI && channel.URI.scheme && channel.responseStatus && channel.originalURI   
+                && (channel.URI.scheme == "http" || channel.URI.scheme == "file")
+                // Skip system-generated requests. See https://developer.mozilla.org/en-US/docs/Code_snippets/Tabbed_browser#Getting_the_browser_that_fires_the_http-on-modify-request_notification
+                && (channel.notificationCallbacks || channel.loadGroup.notificationCallbacks )
+                && (channel.responseStatus != 301 && channel.responseStatus < 500)
+                && (channel.originalURI.path != "/favicon.ico") 
+                && this.isHostNameMatch( channel.URI.host ) ) { 
+
+                // TODO Also handle some or all HTTP error codes as valid responses. But skip 301s at least.
+                // TODO Consider removing cookies, since they won't be set on a proper ESI processor.
+                const EsiProcessorStreamDecorator = Components.Constructor("@angelajonhome.com/esiprocessorstreamdecorator;1");
+                var esiProcessorStreamDecorator = EsiProcessorStreamDecorator().wrappedJSObject;
+                channel.QueryInterface(Ci.nsITraceableChannel);
+                esiProcessorStreamDecorator.originalListener = channel.setNewListener(esiProcessorStreamDecorator);
+            }
+
+        } catch (e) {
+            Components.utils.reportError("\nEsiProcessor error: \n\tMessage: " + e.message + "\n\tFile: " + e.fileName + "  line: " + e.lineNumber + "\n");
+        }
+
+    },
+
+
+    _handlePrefChange: function( aSubject, aData ) { 
+
+        if ( aData == "hostlist" ) { 
+
+            this.hostList = this._sanitizeHostList( aSubject.getCharPref(aData).split("\n", 25) );
+
+        } else if ( aData == "enabled" ) {
+
+            if ( aSubject.getCharPref(aData) == "permanent" 
+                || aSubject.getCharPref(aData) == "session" ) { 
+
+                if ( !this.listening ) { 
+                    var os = Cc["@mozilla.org/observer-service;1"]
+                        .getService(Ci.nsIObserverService);
+
+                    os.addObserver(this, "http-on-examine-response", false);
+                    this.listening = true;
+
+                    this._toggleMenus(true);
+                }
+            } else { 
+
+                if ( this.listening ) { 
+                    var observerService = Cc["@mozilla.org/observer-service;1"]
+                        .getService(Ci.nsIObserverService);
+
+                    observerService.removeObserver(this, "http-on-examine-response");
+                    this.listening = false;
+
+                    this._toggleMenus(false);
+                }
+            }
+        }
+
+    },
+
 
 
     _toggleMenus: function( enable ) {
@@ -258,11 +268,9 @@ EsiProcessor.prototype = {
 
 };
 
+
 var components = [EsiProcessor];
 if ("generateNSGetFactory" in XPCOMUtils)
   var NSGetFactory = XPCOMUtils.generateNSGetFactory(components);  // Firefox 4.0 and higher
 else
   var NSGetModule = XPCOMUtils.generateNSGetModule(components);    // Firefox 3.x
-
-
-
