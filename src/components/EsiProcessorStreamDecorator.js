@@ -46,7 +46,7 @@ function EsiProcessorStreamDecorator() {
     this.completedRequests = [];
     this.errorRequests = 0;
 
-    this.httpRequestCostructor = Components.Constructor("@mozilla.org/xmlextras/xmlhttprequest;1");
+    this.httpRequestConstructor = Components.Constructor("@mozilla.org/xmlextras/xmlhttprequest;1");
 
     this.wrappedJSObject = this;
 };
@@ -66,7 +66,7 @@ EsiProcessorStreamDecorator.prototype = {
     completedRequests: null,
     errorRequests: null,
 
-    httpRequestCostructor: null,
+    httpRequestConstructor: null,
 
     onStartRequest: function(request, context) {
         try {
@@ -227,7 +227,6 @@ EsiProcessorStreamDecorator.prototype = {
 
         // FIXME: Limit the number of concurrent requests.
         // How best to do this? Perhaps for now allow excessive ones to be unprocessed or synchronous?
-        // TODO: Extract method!!!
 
         this.decoratedPage = new Array( (esiTags.length *2) +1 );
         this.completedRequests = new Array(esiTags.length);
@@ -243,92 +242,98 @@ EsiProcessorStreamDecorator.prototype = {
             cursor = prevCursor;
 
             esiUrl = this.esiTagPatternSingle.exec(esiTags[i])[1];
-
-            // NEXT: Test if objParameters do anything in this context.
-            // COMPAT: Gecko 16+  See: https://developer.mozilla.org/en-US/docs/DOM/XMLHttpRequest/Using_XMLHttpRequest#Using_XMLHttpRequest_from_JavaScript_modules_.2F_XPCOM_components
-            let esiRequest = this.httpRequestCostructor( {mozAnon: true, mozSystem: true, } );
-            //COMPAT: Gecko 12+
-            esiRequest.timeout = 60000; // TODO Make this a config param.
-
-            // NEXT: Fix the async bottleneck
-            // Current theory: Firefox only allows one concurrent request per host name. check if this is the case
-            // for unprivelidged Ajax as well. or check the docs.
-            // Prev theory: the requests are getting held up by soem shared resource. 
-            // Also, the requests for the .html esi files arne't showing up in the log. are they handled by browser cache?
-            // A bad option:Count requests by host, and synchronize every third per host? That's messy, and not phase 1.
-            // Just get it to work sustainably. If time permits, try this in client-side code, outside of a component, etc.
-
-            // TODO: Is there an easy way to 
-            // prevent recursive scanning of requests, such as by adding something to the XHR object that supporesses 
-            // the esi scanning? perhaps adding an "ESI-Processor: requestor" header will suffice.
-
-            if ( (i%10 == 9) && (i != esiTags.length-1) ) { 
-
-                // Avoid spawning too many concurrent requests by sending every tenth request synchronously.
-                // But don't do that on the last request, because we want this function to complete first.
-                esiRequest.open("GET", esiUrl, false);
-                esiRequest.send();
-
-                let esiContent = esiRequest.responseText;
-                if( esiRequest.status != 200 )
-                {
-                    esiContent = "ESI timeout or error for request " + i + 
-                        ". Status code: " + esiRequest.status + ". Error text, if any: {" + 
-                        esiRequest.statusText + "} {" + esiRequest.responseText + "}";
-                    this.errorRequests++;
-                }
-
-                this.handleEsiResponse(i, esiContent);
-
-            } else {
-
-                // Send most requests asynchronously.
-                esiRequest.open("GET", esiUrl, true);
-
-                let j = i;
-                let that = this;
-                esiRequest.onreadystatechange = function( event ) {
-
-                    if (this.readyState != 4)  { return; }
-
-                    var esiContent = this.responseText;
-                    if( this.status != 200 )
-                    {
-                        esiContent = "ESI timeout or error for request " + j + 
-                            ". Status code: " + this.status + ". Error text, if any: {" + 
-                            this.statusText + "} {" + this.responseText + "}";
-                        that.errorRequests++;
-                    }
-
-                    that.handleEsiResponse(j, esiContent);
-                }
-
-                esiRequest.send(null);
-            }
-
-            // TODO: Is the check of the status code adequate? Or do I need to handle errors explicitly?
-            /*
-            if ( window.navigator.vendorSub >= 3.5 )
-            {
-                // Check if req.onerror = onError works for FF v3.0 and 3.1, or maybe the below works w/ FF3.1
-                esiRequest.addEventListener("error", function( event ) {
-                    Components.utils.reportError("XHR error! status, errortext: " +
-                        event.target.status + ", " + event.target.errorText ); },
-                    false);
-            }
-            */
-
-            // TODO: If the ESI spec can't send cookies, then try to disable them in the request.
-            // One possible cookie-blocking solution: https://developer.mozilla.org/en-US/docs/Creating_Sandboxed_HTTP_Connections
-            // Use req.sendCredentials = false if it works, or maybe a channel flag somehow.
-            // esiRequest.channel.loadFlags |= Components.interfaces.nsIRequest.LOAD_BYPASS_CACHE;
+    
+            this.makeEsiRequest( esiUrl, i, esiTags.length );
         }
 
         this.decoratedPage[this.decoratedPage.length-1] = page.substr(cursor);
     },
 
 
-    handleEsiResponse: function(esiIndex, esiContent) {
+    makeEsiRequest: function(esiUrl, execCount, totalExecCount) { 
+
+        // TODO: Test if objParameters do anything in this context.
+        // COMPAT: Gecko 16+  See: https://developer.mozilla.org/en-US/docs/DOM/XMLHttpRequest/Using_XMLHttpRequest#Using_XMLHttpRequest_from_JavaScript_modules_.2F_XPCOM_components
+        let esiRequest = this.httpRequestConstructor( {mozAnon: true, mozSystem: true, } );
+        //COMPAT: Gecko 12+
+        esiRequest.timeout = 60000; // TODO Make this a config param.
+
+        // TODO: Fix the async bottleneck
+        // Current theory: Firefox only allows one concurrent request per host name. check if this is the case
+        // for unprivelidged Ajax as well. or check the docs.
+        // Prev theory: the requests are getting held up by soem shared resource. 
+        // Also, the requests for the .html esi files arne't showing up in the log. are they handled by browser cache?
+        // A bad option:Count requests by host, and synchronize every third per host? That's messy, and not phase 1.
+        // Just get it to work sustainably. If time permits, try this in client-side code, outside of a component, etc.
+
+        // TODO: Is there an easy way to 
+        // prevent recursive scanning of requests, such as by adding something to the XHR object that supporesses 
+        // the esi scanning? perhaps adding an "ESI-Processor: requestor" header will suffice.
+
+        if ( (execCount%10 == 9) && (execCount != totalExecCount-1) ) {
+
+            // Avoid spawning too many concurrent requests by sending every tenth request synchronously.
+            // But don't do that on the last request, because we want this function to complete first.
+            esiRequest.open("GET", esiUrl, false);
+            esiRequest.send();
+
+            let esiContent = esiRequest.responseText;
+            if( esiRequest.status != 200 )
+            {
+                esiContent = "ESI timeout or error for request " + execCount + 
+                    ". Status code: " + esiRequest.status + ". Error text, if any: {" + 
+                    esiRequest.statusText + "} {" + esiRequest.responseText + "}";
+                this.errorRequests++;
+            }
+
+            this.handleEsiResponse(execCount, esiContent);
+
+        } else {
+
+            // Send most requests asynchronously.
+            esiRequest.open("GET", esiUrl, true);
+
+            let j = execCount;
+            let that = this;
+            esiRequest.onreadystatechange = function( event ) {
+
+                if (this.readyState != 4)  { return; }
+
+                var esiContent = this.responseText;
+                if( this.status != 200 )
+                {
+                    esiContent = "ESI timeout or error for request " + j + 
+                        ". Status code: " + this.status + ". Error text, if any: {" + 
+                        this.statusText + "} {" + this.responseText + "}";
+                    that.errorRequests++;
+                }
+
+                that.handleEsiResponse(j, esiContent);
+            }
+
+            esiRequest.send(null);
+        }
+
+        // TODO: Is the check of the status code adequate? Or do I need to handle errors explicitly?
+        /*
+        if ( window.navigator.vendorSub >= 3.5 )
+        {
+            // Check if req.onerror = onError works for FF v3.0 and 3.1, or maybe the below works w/ FF3.1
+            esiRequest.addEventListener("error", function( event ) {
+                Components.utils.reportError("XHR error! status, errortext: " +
+                    event.target.status + ", " + event.target.errorText ); },
+                false);
+        }
+        */
+
+        // TODO: If the ESI spec can't send cookies, then try to disable them in the request.
+        // One possible cookie-blocking solution: https://developer.mozilla.org/en-US/docs/Creating_Sandboxed_HTTP_Connections
+        // Use req.sendCredentials = false if it works, or maybe a channel flag somehow.
+        // esiRequest.channel.loadFlags |= Components.interfaces.nsIRequest.LOAD_BYPASS_CACHE;
+    },
+
+
+    handleEsiResponse: function( esiIndex, esiContent) {
 
         this.decoratedPage[(esiIndex*2) +1] = 
             '<!-- ESI tag processed by ESI Processor. -->' + 
