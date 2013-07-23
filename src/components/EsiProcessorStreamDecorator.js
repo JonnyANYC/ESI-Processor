@@ -209,7 +209,7 @@ EsiProcessorStreamDecorator.prototype = {
         throw Components.results.NS_NOINTERFACE;
     },
 
-    // TODO Needs to be UTF-8 compatible.
+    // TODO: Needs to be UTF-8 compatible.
     // FIXME: Needs to support all other valid punctuation in URLs.
     // FIXME: Need to support relative URLs, but still filter for bad URLs, such as javascript: or chrome:.
     esiTagPatternAll: /\<esi:include src="(https?:\/\/[\w\d\.:\/\-,]+)"[\w\s="]?\/\>/ig,
@@ -224,9 +224,6 @@ EsiProcessorStreamDecorator.prototype = {
             this.sendDecoratedResponse(page, 0);
             return;
         }
-
-        // FIXME: Limit the number of concurrent requests.
-        // How best to do this? Perhaps for now allow excessive ones to be unprocessed or synchronous?
 
         this.decoratedPage = new Array( (esiTags.length *2) +1 );
         this.completedRequests = new Array(esiTags.length);
@@ -259,15 +256,11 @@ EsiProcessorStreamDecorator.prototype = {
         esiRequest.timeout = 60000; // TODO Make this a config param.
 
         // TODO: Fix the async bottleneck
-        // Current theory: Firefox only allows one concurrent request per host name. check if this is the case
-        // for unprivelidged Ajax as well. or check the docs.
-        // Prev theory: the requests are getting held up by soem shared resource. 
-        // Also, the requests for the .html esi files arne't showing up in the log. are they handled by browser cache?
-        // A bad option:Count requests by host, and synchronize every third per host? That's messy, and not phase 1.
-        // Just get it to work sustainably. If time permits, try this in client-side code, outside of a component, etc.
+        // Current theory: Firefox limits privileged code to one concurrent request per host name.
+        // Also, the requests for the .html esi files aren't showing up in the log. are they handled by browser cache?
 
         // TODO: Is there an easy way to 
-        // prevent recursive scanning of requests, such as by adding something to the XHR object that supporesses 
+        // prevent recursive scanning of requests, such as by adding something to the XHR object that suppresses 
         // the esi scanning? perhaps adding an "ESI-Processor: requestor" header will suffice.
 
         if ( (execCount%10 == 9) && (execCount != totalExecCount-1) ) {

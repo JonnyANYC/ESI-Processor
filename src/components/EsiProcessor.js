@@ -32,7 +32,6 @@ Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
 function EsiProcessor() {
 
-    _initialized = false;
     hostList = null;
     prefService = null;
     listening = false;
@@ -46,12 +45,6 @@ EsiProcessor.prototype = {
 
     startup: function() {
 
-        if ( this._initialized )  { 
-            // TODO: change to a warning, or accept repeated calls to this as usual process.
-            Components.utils.reportError("WARNING: already initialized.");
-            return;
-        }
-
         // TODO: Consider using FUEL if it's easier to be consistent with the overlay: https://developer.mozilla.org/en-US/docs/Toolkit_API/FUEL#XPCOM 
         this.prefService = Cc["@mozilla.org/preferences-service;1"]
             .getService(Ci.nsIPrefService)
@@ -60,7 +53,7 @@ EsiProcessor.prototype = {
         var hostListPref = this.prefService.getCharPref("hostlist");
         if ( hostListPref != null && hostListPref.length > 0 )
         {
-            this.hostList = this._sanitizeHostList( hostListPref.split("\n", 25) );
+            this.hostList = this.sanitizeHostList( hostListPref.split("\n", 25) );
         } else
         {
             this.prefService.setCharPref("hostlist", "");
@@ -88,19 +81,6 @@ EsiProcessor.prototype = {
 
         this.prefService.addObserver("", this, false);
         this.prefService.QueryInterface(Ci.nsIPrefBranch);
-
-        this._initialized = true;
-    },
-
-
-    shutdown: function() {
-        // TODO: How important is it to remove the listener if this object is only torn down when Firefox closes?
-        var observerService = Cc["@mozilla.org/observer-service;1"]
-            .getService(Ci.nsIObserverService);
-
-        observerService.removeObserver(this, "http-on-examine-response");
-        this.listening = false;
-        this.prefService.removeObserver("", this);
     },
 
 
@@ -108,11 +88,11 @@ EsiProcessor.prototype = {
 
         if (aTopic == "http-on-examine-response") {
 
-            this._handleWebResponse( aSubject );
+            this.handleWebResponse( aSubject );
 
         } else if (aTopic == "nsPref:changed") {
 
-            this._handlePrefChange( aSubject, aData );
+            this.handlePrefChange( aSubject, aData );
 
         } else if (aTopic == "profile-after-change") {
 
@@ -124,7 +104,7 @@ EsiProcessor.prototype = {
     },
 
 
-    _handleWebResponse: function( aSubject ) { 
+    handleWebResponse: function( aSubject ) { 
 
         try {
             // TODO: need to identify cached pages ([xpconnect wrapped nsIURI]) and process them too.
@@ -137,11 +117,11 @@ EsiProcessor.prototype = {
                 && (channel.URI.scheme == "http" || channel.URI.scheme == "file")
                 // Skip system-generated requests. See https://developer.mozilla.org/en-US/docs/Code_snippets/Tabbed_browser#Getting_the_browser_that_fires_the_http-on-modify-request_notification
                 && (channel.notificationCallbacks || channel.loadGroup.notificationCallbacks )
-                && (channel.responseStatus != 301 && channel.responseStatus < 500)
+                && (channel.responseStatus >= 200 && channel.responseStatus < 500)
+                && (channel.responseStatus <= 300 || channel.responseStatus >= 304)
                 && (channel.originalURI.path != "/favicon.ico") 
                 && this.isHostNameMatch( channel.URI.host ) ) { 
 
-                // TODO Also handle some or all HTTP error codes as valid responses. But skip 301s at least.
                 // TODO Consider removing cookies, since they won't be set on a proper ESI processor.
                 const EsiProcessorStreamDecorator = Components.Constructor("@angelajonhome.com/esiprocessorstreamdecorator;1");
                 var esiProcessorStreamDecorator = EsiProcessorStreamDecorator().wrappedJSObject;
@@ -156,11 +136,11 @@ EsiProcessor.prototype = {
     },
 
 
-    _handlePrefChange: function( aSubject, aData ) { 
+    handlePrefChange: function( aSubject, aData ) { 
 
         if ( aData == "hostlist" ) { 
 
-            this.hostList = this._sanitizeHostList( aSubject.getCharPref(aData).split("\n", 25) );
+            this.hostList = this.sanitizeHostList( aSubject.getCharPref(aData).split("\n", 25) );
 
         } else if ( aData == "enabled" ) {
 
@@ -174,7 +154,7 @@ EsiProcessor.prototype = {
                     os.addObserver(this, "http-on-examine-response", false);
                     this.listening = true;
 
-                    this._toggleMenus(true);
+                    this.toggleMenus(true);
                 }
             } else { 
 
@@ -185,7 +165,7 @@ EsiProcessor.prototype = {
                     observerService.removeObserver(this, "http-on-examine-response");
                     this.listening = false;
 
-                    this._toggleMenus(false);
+                    this.toggleMenus(false);
                 }
             }
         }
@@ -194,7 +174,7 @@ EsiProcessor.prototype = {
 
 
 
-    _toggleMenus: function( enable ) {
+    toggleMenus: function( enable ) {
 
         var wm = Components.classes["@mozilla.org/appshell/window-mediator;1"]
             .getService(Components.interfaces.nsIWindowMediator);
@@ -246,7 +226,7 @@ EsiProcessor.prototype = {
 
     allowedHostPattern: /^[\w-\.]*[\w-]+\.[\w-]+$/,
 
-    _sanitizeHostList: function( dirtyHostList ) {
+    sanitizeHostList: function( dirtyHostList ) {
 
         var hostList = new Array();
         // A host entry is allowed if it contains alphanumerics, periods, and dashes.
