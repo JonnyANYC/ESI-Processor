@@ -212,8 +212,8 @@ EsiProcessorStreamDecorator.prototype = {
     // TODO: Needs to be UTF-8 compatible.
     // FIXME: Needs to support all other valid punctuation in URLs.
     // FIXME: Need to support relative URLs, but still filter for bad URLs, such as javascript: or chrome:.
-    esiTagPatternAll: /\<esi:include src="(https?:\/\/[\w\d\.:\/\-,]+)"[\w\s="]?\/\>/ig,
-    esiTagPatternSingle: /\<esi:include src="(https?:\/\/[\w\d\.:\/\-,]+)"[\w\s="]?\/\>/i,
+    esiTagPatternAll: /\<esi:include src="(https?:\/\/[\w\d\.:\/\-,+?=&]+)"[\w\s="]*\/?\>/ig,
+    esiTagPatternSingle: /\<esi:include src="(https?:\/\/[\w\d\.:\/\-,+?=&]+)"[\w\s="]*\/?\>/i,
 
     processEsiBlocks: function(page) {
 
