@@ -6,8 +6,8 @@
   <Description about="urn:mozilla:install-manifest">
     <em:id>esi_processor@angelajonhome.com</em:id>
     <em:name>ESI Processor</em:name>
-    <em:description>Let Firefox interpret ESI blocks if your web server doesn't. Useful for debugging sites with ESI content.</em:description>
-    <em:version>0.1</em:version>
+    <em:description>Let Firefox interpret ESI blocks if your web server doesn't support them. Useful for developers working on sites with ESI content.</em:description>
+    <em:version>0.1.1</em:version>
     <em:creator>AngelaJonHome.com</em:creator>
     <em:homepageURL>http://angelajonhome.com/projects/esi_processor</em:homepageURL>
     <em:type>2</em:type>
@@ -18,8 +18,8 @@
     <em:targetApplication>
       <Description>
         <em:id>{ec8030f7-c20a-464f-9b0e-13a3a9e97384}</em:id>
-        <em:minVersion>3.5</em:minVersion>
-        <em:maxVersion>20.*</em:maxVersion>
+        <em:minVersion>16.0</em:minVersion>
+        <em:maxVersion>26.*</em:maxVersion>
       </Description>
     </em:targetApplication>
   </Description>
